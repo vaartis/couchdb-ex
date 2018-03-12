@@ -110,20 +110,25 @@ defmodule CouchDBEx.Worker do
 
 
   @doc """
-  ## Options
+  Documents can cave an `_id` field, in this case database will no attemt to generate a new one
 
-  * `id` - manyully provide a UUID insead of getting it from `/_uuids`
+  ## TODO:
+
+  * batch mode
   """
   @impl true
-  def handle_call({:document_insert, database, document, opts}, _from, state) do
+  def handle_call({:document_insert, database, document}, _from, state) do
     # If document has a _rev field, it's an update, treat this as an error
     # TODO: create a function for updating
     if not Map.has_key?(document, "_rev") do
-      with {:ok, [uuid]} <- if(Keyword.has_key?(opts, :id), do: {:ok, [opts[:id]]}, else: uuid_get_impl(1, state)),
-             {:ok, resp} <- HTTPoison.put("#{state[:hostname]}:#{state[:port]}/#{database}/#{uuid}", Poison.encode!(document)),
-             %{"ok" => true, "id" => id, "rev" => rev} <- resp.body |> Poison.decode!
+      with {:ok, resp} <- HTTPoison.post(
+             "#{state[:hostname]}:#{state[:port]}/#{database}",
+             Poison.encode!(document),
+             [{"Content-Type", "application/json"}]
+           ),
+           %{"ok" => true, "id" => id, "rev" => rev} <- resp.body |> Poison.decode!
         do {:reply, {:ok, [id: id, rev: rev]}, state}
-        else e -> {:reply, e, state}
+        else e -> {:reply, {:error, e}, state}
       end
     else
       {:reply, {:error, "Document contains the `_rev` field, `update` function should be used to update documents (TODO)"}, state}
