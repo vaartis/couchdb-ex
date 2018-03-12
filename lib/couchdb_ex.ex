@@ -60,8 +60,7 @@ defmodule CouchDBEx.Worker do
          ),
          %{"ok" => true} <- resp.body |> Poison.decode!
       do {:reply, :ok, state}
-      else
-        %{"error" => er, "reason" => reason} -> {:reply, {:error, [error: er, reason: reason]}, state}
+      else e -> {:reply, {:error, e}, state}
     end
   end
 
@@ -71,7 +70,7 @@ defmodule CouchDBEx.Worker do
          %{"ok" => true} <- resp.body |> Poison.decode!
       do {:reply, :ok, state}
       else
-        %{"error" => er, "reason" => reason} -> {:reply, {:error, [error: er, reason: reason]}, state}
+        e -> {:reply, {:error, e}, state}
     end
   end
 
@@ -136,7 +135,7 @@ defmodule CouchDBEx.Worker do
       if not Map.has_key?(json_resp, "error") do
         {:reply, {:ok, json_resp}, state}
       else
-        {:reply, {:error, [error: json_resp["error"], reason: json_resp["reason"]]}, state}
+        {:reply, {:error, json_resp}, state}
       end
     else e -> {:reply, e, state}
     end
