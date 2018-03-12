@@ -42,6 +42,21 @@ defmodule CouchDBEx.Worker do
   end
 
 
+  def handle_call({:db_exists?, db_name}, _from, state) do
+    with {:ok, resp} <- HTTPoison.head("#{state[:hostname]}:#{state[:port]}/#{db_name}")
+      do {:reply, {:ok, resp.status_code == 200}, state}
+      else e -> {:reply, {:error, e}, state}
+    end
+  end
+
+  def handle_call({:db_info, db_name}, _from, state) do
+    with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/#{db_name}"),
+         json_resp <- resp.body |> Poison.decode!
+      do {:reply, {:ok, json_resp}, state}
+      else e -> {:reply, {:error, e}, state}
+    end
+  end
+
   @doc """
   ## Options
 
