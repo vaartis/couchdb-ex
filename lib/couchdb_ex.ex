@@ -110,28 +110,51 @@ defmodule CouchDBEx.Worker do
 
 
   @doc """
-  Documents can cave an `_id` field, in this case database will no attemt to generate a new one
+  Documents can have an `_id` field, in this case database will no attemt to generate a new one.
+  Inserting a list of documents will count as a bulk insert. This function error if documents have a `_rev`
+  field, this should be done in a separate function.
 
   ## TODO:
 
   * batch mode
   """
   @impl true
-  def handle_call({:document_insert, database, document}, _from, state) do
-    # If document has a _rev field, it's an update, treat this as an error
-    # TODO: create a function for updating
-    if not Map.has_key?(document, "_rev") do
-      with {:ok, resp} <- HTTPoison.post(
-             "#{state[:hostname]}:#{state[:port]}/#{database}",
-             Poison.encode!(document),
-             [{"Content-Type", "application/json"}]
-           ),
-           %{"ok" => true, "id" => id, "rev" => rev} <- resp.body |> Poison.decode!
-        do {:reply, {:ok, [id: id, rev: rev]}, state}
-        else e -> {:reply, {:error, e}, state}
+  def handle_call({:document_insert, database, document_or_documents}, _from, state) do
+    # A bulk insert
+    if is_list(document_or_documents) do
+      documents = document_or_documents
+
+      if not Enum.any?(documents, fn d -> Map.has_key?(d, "_rev") end) do
+        with {:ok, resp} <- HTTPoison.post(
+               "#{state[:hostname]}:#{state[:port]}/#{database}/_bulk_docs",
+               Poison.encode!(%{docs: documents}),
+               [{"Content-Type", "application/json"}]
+             ),
+             docs <- resp.body |> Poison.decode!
+          do {:reply, {:ok, docs}, state}
+          else e -> {:reply, {:error, e}, state}
+        end
+      else
+        {:reply, {:error, "Documents contain the `_rev` field, `update` function should be used to update documents (TODO)"}, state}
       end
     else
-      {:reply, {:error, "Document contains the `_rev` field, `update` function should be used to update documents (TODO)"}, state}
+      document = document_or_documents
+
+      # If document has a _rev field, it's an update, treat this as an error
+      # TODO: create a function for updating
+      if not Map.has_key?(document, "_rev") do
+        with {:ok, resp} <- HTTPoison.post(
+               "#{state[:hostname]}:#{state[:port]}/#{database}",
+               Poison.encode!(document),
+               [{"Content-Type", "application/json"}]
+             ),
+             %{"ok" => true, "id" => id, "rev" => rev} <- resp.body |> Poison.decode!
+          do {:reply, {:ok, [id: id, rev: rev]}, state}
+          else e -> {:reply, {:error, e}, state}
+        end
+      else
+        {:reply, {:error, "Document contains the `_rev` field, `update` function should be used to update documents (TODO)"}, state}
+      end
     end
   end
 
