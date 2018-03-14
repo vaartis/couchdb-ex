@@ -184,6 +184,61 @@ defmodule CouchDBEx.Worker do
     end
   end
 
+  @doc """
+  ## Options
+
+  * `limit` - maximum number of results returned. Default is 25
+  * `skip` - skip the first ‘n’ results
+  * `sort` – an array following sort syntax
+  * `fields` – an array specifying which fields of each object should be returned.
+               If it is omitted, the entire object is returned. More information provided in the section on filtering fields
+  * `use_index` - instruct a query to use a specific index. Specified either as "<design_document>" or ["<design_document>", "<index_name>"]
+  * `r` - Read quorum needed for the result. This defaults to 1, in which case the document found in the index is returned.
+          If set to a higher value, each document is read from at least that many replicas before it is returned in the results. This is likely to take more time
+          than using only the document stored locally with the index
+  * `bookmark` - a string that enables you to specify which page of results you require. Used for paging through result sets. Every query returns an opaque string
+                 under the bookmark key that can then be passed back in a query to get the next page of results.
+                 If any part of the selector query changes between requests, the results are undefined, defaults to nil
+  * `update` - whether to update the index prior to returning the result. Default is true
+  * `stable` - whether or not the view results should be returned from a “stable” set of shards
+  * `stale` - combination of `update: false` and `stable: true` options. Possible options: "ok", false (default)
+  * `execution_stats` - include execution statistics in the query response. Default: false
+
+  Options and their description is taken from [here](http://docs.couchdb.org/en/2.1.1/api/database/find.html)
+  """
+  def handle_call({:document_find, database, selector, opts}, _from, state) do
+    # Default options as defined by `http://docs.couchdb.org/en/2.1.1/api/database/find.html`
+
+    default_opts = [
+      limit: 25,
+      skip: 0,
+      sort: nil,
+      fields: nil,
+      use_index: nil,
+      r: 1,
+      bookmark: nil,
+      update: true,
+      stale: false,
+      execution_stats: false
+    ]
+
+    final_opts = default_opts |>
+      Keyword.merge(opts) |> # Override defaults from options
+      Enum.filter(fn {_,v} -> not is_nil(v) end) |> # Remove nil fields
+      Enum.into(%{}) |> # Transform options into a map
+      Map.put(:selector, selector) # Add the selector field
+
+    with {:ok, resp} <- HTTPoison.post(
+           "#{state[:hostname]}:#{state[:port]}/#{database}/_find",
+           Poison.encode!(final_opts),
+           [{"Content-Type", "application/json"}]
+         ),
+         %{"docs" => _docs} = json_res <- resp.body |> Poison.decode!
+    do {:reply, {:ok ,json_res}, state}
+    else e-> {:reply, {:error, e}, state}
+    end
+  end
+
 
   @doc """
   ## Options
