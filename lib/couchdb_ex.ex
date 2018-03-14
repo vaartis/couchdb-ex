@@ -204,27 +204,10 @@ defmodule CouchDBEx.Worker do
   * `stale` - combination of `update: false` and `stable: true` options. Possible options: "ok", false (default)
   * `execution_stats` - include execution statistics in the query response. Default: false
 
-  Options and their description is taken from [here](http://docs.couchdb.org/en/2.1.1/api/database/find.html)
+  Options and their descriptions are taken from [here](http://docs.couchdb.org/en/2.1.1/api/database/find.html)
   """
   def handle_call({:document_find, database, selector, opts}, _from, state) do
-    # Default options as defined by `http://docs.couchdb.org/en/2.1.1/api/database/find.html`
-
-    default_opts = [
-      limit: 25,
-      skip: 0,
-      sort: nil,
-      fields: nil,
-      use_index: nil,
-      r: 1,
-      bookmark: nil,
-      update: true,
-      stale: false,
-      execution_stats: false
-    ]
-
-    final_opts = default_opts |>
-      Keyword.merge(opts) |> # Override defaults from options
-      Enum.filter(fn {_,v} -> not is_nil(v) end) |> # Remove nil fields
+    final_opts = opts |>
       Enum.into(%{}) |> # Transform options into a map
       Map.put(:selector, selector) # Add the selector field
 
@@ -257,6 +240,45 @@ defmodule CouchDBEx.Worker do
          %{"ok" => true, "id" => id, "rev" => rev} <- resp.body |> Poison.decode!
       do {:reply, {:ok, [id: id, rev: rev]}, state}
       else e -> {:reply, e, state}
+    end
+  end
+
+
+  @doc """
+  ## Notes
+  If `index` is a list, it is considered a list of indexing fields, otherwise
+  it is used as a full index specification.
+
+  ## Options
+
+  * `ddoc` - name of the design document in which the index will be created.
+             By default, each index will be created in its own design document.
+             Indexes can be grouped into design documents for efficiency. However, a change to
+             one index in a design document will invalidate all other indexes in the
+             same document (similar to views)
+  * `name` - name of the index. If no name is provided, a name will be generated automatically
+  * `type` - can be "json" or "text". Defaults to json
+  * `partial_filter_selector` - a selector to apply to documents at indexing time, creating
+             a partial index
+
+  """
+  def handle_call({:index_create, database, index, opts}, _from, state) do
+    final_index = if is_list(index) do
+      %{fields: index} # Is index is a list, consider it a list of indexing fields
+    else
+      index
+    end
+
+    final_opts = opts |> Enum.into(%{}) |> Map.put(:index, final_index)
+
+    with {:ok, resp} <- HTTPoison.post(
+           "#{state[:hostname]}:#{state[:port]}/#{database}/_index",
+           Poison.encode!(final_opts),
+           [{"Content-Type", "application/json"}]
+         ),
+         %{"result" => "created"} = json_res <- resp.body |> Poison.decode!
+      do {:reply, {:ok, json_res}, state}
+      else e -> {:reply, {:error, e}, state}
     end
   end
 
