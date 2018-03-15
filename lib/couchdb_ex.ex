@@ -282,6 +282,24 @@ defmodule CouchDBEx.Worker do
     end
   end
 
+  def handle_call({:index_delete, database, ddoc, index_name}, _from, state) do
+    with {:ok, resp} <- HTTPoison.delete(
+           "#{state[:hostname]}:#{state[:port]}/#{database}/_index/#{ddoc}/json/#{index_name}"
+         ),
+         %{"ok" => true} <- resp.body |> Poison.decode!
+      do {:reply, :ok, state}
+      else e -> {:reply, {:error, e}, state}
+    end
+  end
+
+  def handle_call({:index_get_all, database}, _from, state) do
+    with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/#{database}/_index"),
+         %{"indexes" => indexes, "total_rows" => total} <- resp.body |> Poison.decode!
+      do {:reply, {:ok, indexes, total}, state}
+      else e -> {:reply, {:error, e}, state}
+    end
+  end
+
 
   @doc """
   ## Options
