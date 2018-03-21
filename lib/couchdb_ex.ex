@@ -1,17 +1,41 @@
 defmodule CouchDBEx.Worker do
   use GenServer
 
+  defmodule ChangesTest do
+    use GenServer
+
+    def start_link(opts) do
+      GenServer.start_link(__MODULE__, nil, opts)
+    end
+
+    def init(_) do
+      {:ok, nil}
+    end
+
+    def handle_info({:couchdb_change, msg}, _) do
+      IO.inspect msg
+
+      {:noreply, nil}
+    end
+
+  end
+
   @moduledoc """
   ## TODO:
 
   - [ ] `_stats`
   - [ ] `_scheduler`
   - [ ] `_session` - cookie session
+  - [ ] `_explain`
   """
+
+  # Client
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
+
+  # Server
 
   @impl true
   def init(args) do
@@ -22,6 +46,12 @@ defmodule CouchDBEx.Worker do
       ],
       args
     )
+
+    children = [
+      {__MODULE__.ChangesCommunicator, args}
+    ]
+
+    Supervisor.start_link(children, strategy: :one_for_one, name: CouchDBEx.Worker.Supervisor)
 
     {:ok, args}
   end
@@ -363,6 +393,30 @@ defmodule CouchDBEx.Worker do
       do {:reply, {:ok, json_resp}, state}
       else e -> {:reply, {:error, e}, state}
     end
+  end
+
+
+  @doc """
+  Subscribe to changes to the table, module name will be passed as the
+  `:name` in the parameters of the start_link, this name will be used to communicate
+  with the watcher and it is expected that it'll set this name when starting (either with
+  `__MODULE__` if the name corresponds to the module name or by passing it to the
+  underlying `start_link`
+  """
+  @impl true
+  def handle_cast({:changes_sub, database, modname}, state) do
+    GenServer.cast(
+      CouchDBEx.Worker.ChangesCommunicator,
+      {:add_watcher, database, modname}
+    )
+
+    {:noreply, state}
+  end
+
+  def handle_cast({:changes_unsub, modname}, state) do
+    GenServer.cast(CouchDBEx.Worker.ChangesCommunicator, {:remove_watcher, modname})
+
+    {:noreply, state}
   end
 
 
