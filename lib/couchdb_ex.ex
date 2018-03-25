@@ -405,12 +405,23 @@ defmodule CouchDBEx.Worker do
   This facilitates module reuse, as one might want to use same modules on different
   tables. `modname` is the actual module that will be passed to the supervisor, which
   in turn will start it.
+
+  ## Options
+
+  Options are as described in
+  [the official documentation](http://docs.couchdb.org/en/2.1.1/api/database/changes.html),
+  except the following defaults:
+  * `feed` is `continuous`, this is the only mode supported, trying to change it **WILL RAISE A RuntimeError**
+  * `include_docs` is `true`
+  * `since` is `now`
+  * `heartbeat` is `25`, this is needed to keep the connection alive,
+                trying to change it **WILL RAISE a RuntimeError**
   """
   @impl true
-  def handle_cast({:changes_sub, database, modname, watcher_name}, state) do
+  def handle_cast({:changes_sub, database, modname, watcher_name, opts}, state) do
     GenServer.cast(
       CouchDBEx.Worker.ChangesCommunicator,
-      {:add_watcher, database, modname, watcher_name}
+      {:add_watcher, database, modname, watcher_name, opts}
     )
 
     {:noreply, state}

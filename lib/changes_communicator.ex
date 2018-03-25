@@ -18,7 +18,12 @@ defmodule CouchDBEx.Worker.ChangesCommunicator do
     {:ok, Keyword.put(args, :watchers, %{})}
   end
 
-  def handle_cast({:add_watcher, database, module_name, watcher_name}, state) do
+  def handle_cast({:add_watcher, database, module_name, watcher_name, opts}, state) do
+    IO.inspect opts
+    if Enum.any?(opts, fn {e, _} -> e in [:feed, :heartbeet] end) do
+      raise "Changing :feed or :heartbeet parameters is not supported"
+    end
+
     {:ok, _} = Supervisor.start_child(
       CouchDBEx.Worker.ChangesCommunicator.Supervisor,
       %{
@@ -27,17 +32,32 @@ defmodule CouchDBEx.Worker.ChangesCommunicator do
       }
     )
 
+    default_opts = %{
+      feed: "continuous",
+      include_docs: true,
+      since: "now",
+      heartbeat: 25 # Sends an empty string to keep the connection alive every once in a while
+    }
+
+    {maybe_body, final_opts} = if :doc_ids in opts do
+      body = Poison.encode!(%{doc_ids: opts[:doc_ids]})
+      tmp_opts = opts |>
+        Keyword.delete(:doc_ids) |>
+        Enum.into(%{})
+      {
+        body,
+        Map.merge(default_opts, tmp_opts)
+      }
+    else
+      {"", Map.merge(default_opts, Enum.into(opts, %{}))}
+    end
+
     {:ok, %HTTPoison.AsyncResponse{id: resp_id}} = HTTPoison.post(
       "#{state[:hostname]}:#{state[:port]}/#{database}/_changes",
-      "",
+      maybe_body,
       [{"Content-Type", "application/json"}],
       stream_to: self(),
-      params: %{
-        feed: "continuous",
-        include_docs: true,
-        since: "now",
-        heartbeat: 25 # Sends an empty string to keep the connection alive every once in a while
-      },
+      params: final_opts,
       recv_timeout: :infinity
     )
 
