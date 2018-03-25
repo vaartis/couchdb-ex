@@ -18,13 +18,14 @@ defmodule CouchDBEx.Worker.ChangesCommunicator do
     {:ok, Keyword.put(args, :watchers, %{})}
   end
 
-  def handle_cast({:add_watcher, database, module_name}, state) do
+  def handle_cast({:add_watcher, database, module_name, watcher_name}, state) do
     {:ok, _} = Supervisor.start_child(
       CouchDBEx.Worker.ChangesCommunicator.Supervisor,
-      {module_name, [name: module_name]}
+      %{
+        id: watcher_name,
+        start: {module_name, :start_link, [[name: watcher_name]]}
+      }
     )
-
-    IO.inspect Supervisor.which_children(CouchDBEx.Worker.ChangesCommunicator.Supervisor)
 
     {:ok, %HTTPoison.AsyncResponse{id: resp_id}} = HTTPoison.post(
       "#{state[:hostname]}:#{state[:port]}/#{database}/_changes",
@@ -40,21 +41,25 @@ defmodule CouchDBEx.Worker.ChangesCommunicator do
       recv_timeout: :infinity
     )
 
-    state = put_in(state[:watchers][resp_id], module_name)
+    state = put_in(state[:watchers][resp_id], watcher_name)
 
     {:noreply, state}
   end
 
-  def handle_cast({:remove_watcher, module_name}, state) do
-    Supervisor.terminate_child(CouchDBEx.Worker.ChangesCommunicator.Supervisor, module_name)
+  def handle_cast({:remove_watcher, watcher_name}, state) do
+    Supervisor.terminate_child(CouchDBEx.Worker.ChangesCommunicator.Supervisor, watcher_name)
+    Supervisor.delete_child(CouchDBEx.Worker.ChangesCommunicator.Supervisor, watcher_name)
 
-    {id, _} = Enum.find(state, fn{nm, _} -> nm == module_name end)
-
-    state = Keyword.put(
-      state,
-      :watchers,
-      Map.delete(state[:watchers], id)
-    )
+    state =
+      case Enum.find(state[:watchers], fn{_, nm} -> nm == watcher_name end) do
+        {id, _} ->
+          Keyword.put(
+            state,
+            :watchers,
+            Map.delete(state[:watchers], id)
+          )
+        nil -> state
+      end
 
     {:noreply, state}
   end

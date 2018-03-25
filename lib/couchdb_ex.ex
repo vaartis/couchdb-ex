@@ -397,17 +397,20 @@ defmodule CouchDBEx.Worker do
 
 
   @doc """
-  Subscribe to changes to the table, module name will be passed as the
-  `:name` in the parameters of the start_link, this name will be used to communicate
-  with the watcher and it is expected that it'll set this name when starting (either with
-  `__MODULE__` if the name corresponds to the module name or by passing it to the
-  underlying `start_link`
+  Subscribe to changes to the table.
+
+  `watcher_name` is the process name the caller wants the watcher to be known as,
+  the watcher may set this name on start (it will be passed as `:name` in the options
+  list) so that other processes could communicate with it, otherwise it is used only as a `Supervisor` id.
+  This facilitates module reuse, as one might want to use same modules on different
+  tables. `modname` is the actual module that will be passed to the supervisor, which
+  in turn will start it.
   """
   @impl true
-  def handle_cast({:changes_sub, database, modname}, state) do
+  def handle_cast({:changes_sub, database, modname, watcher_name}, state) do
     GenServer.cast(
       CouchDBEx.Worker.ChangesCommunicator,
-      {:add_watcher, database, modname}
+      {:add_watcher, database, modname, watcher_name}
     )
 
     {:noreply, state}
