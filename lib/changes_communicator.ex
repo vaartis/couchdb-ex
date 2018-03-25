@@ -19,7 +19,6 @@ defmodule CouchDBEx.Worker.ChangesCommunicator do
   end
 
   def handle_cast({:add_watcher, database, module_name, watcher_name, opts}, state) do
-    IO.inspect opts
     if Enum.any?(opts, fn {e, _} -> e in [:feed, :heartbeet] end) do
       raise "Changing :feed or :heartbeet parameters is not supported"
     end
@@ -39,18 +38,22 @@ defmodule CouchDBEx.Worker.ChangesCommunicator do
       heartbeat: 25 # Sends an empty string to keep the connection alive every once in a while
     }
 
-    {maybe_body, final_opts} = if :doc_ids in opts do
-      body = Poison.encode!(%{doc_ids: opts[:doc_ids]})
-      tmp_opts = opts |>
-        Keyword.delete(:doc_ids) |>
-        Enum.into(%{})
-      {
-        body,
-        Map.merge(default_opts, tmp_opts)
+    pre_final_opts = Map.merge(default_opts, Enum.into(opts, %{}))
+
+    maybe_body =
+      %{
+        doc_ids: pre_final_opts[:doc_ids],
+        selector: pre_final_opts[:selector]
       }
-    else
-      {"", Map.merge(default_opts, Enum.into(opts, %{}))}
-    end
+      |> Enum.filter(fn {_, v} -> not is_nil(v) end)
+      |> (fn m -> if(Enum.empty?(m), do: "", else: m) end).()
+      |> Enum.into(%{})
+      |> Poison.encode!
+
+    final_opts =
+      pre_final_opts
+      |> Map.delete(:doc_ids)
+      |> Map.delete(:selector)
 
     {:ok, %HTTPoison.AsyncResponse{id: resp_id}} = HTTPoison.post(
       "#{state[:hostname]}:#{state[:port]}/#{database}/_changes",
