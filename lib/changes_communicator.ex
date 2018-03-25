@@ -53,6 +53,8 @@ defmodule CouchDBEx.Worker.ChangesCommunicator do
     state =
       case Enum.find(state[:watchers], fn{_, nm} -> nm == watcher_name end) do
         {id, _} ->
+          :hackney.close(id)
+
           Keyword.put(
             state,
             :watchers,
