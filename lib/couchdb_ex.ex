@@ -120,6 +120,15 @@ defmodule CouchDBEx.Worker do
     end
   end
 
+  def handle_call({:db_compact, db_name}, _from, state) do
+    with {:ok, resp} <- HTTPoison.post("#{state[:hostname]}:#{state[:port]}/#{db_name}/_compact", ""),
+         %{"ok" => true} <- resp.body |> Poison.decode!
+      do {:reply, :ok, state}
+      else
+        e -> {:reply, {:error, e}, state}
+    end
+  end
+
   def handle_call({:db_list}, _from, state) do
     with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/_all_dbs"),
          json_resp <- resp.body |> Poison.decode!
