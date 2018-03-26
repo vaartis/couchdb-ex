@@ -267,6 +267,36 @@ defmodule CouchDBEx.Worker do
     end
   end
 
+  @doc """
+  Either {id,rev} or [{id,rev}]
+  """
+  def handle_call({:document_delete, database, id_rev}, _from, state) do
+    if is_list(id_rev) do
+      final_id_rev = Enum.map(id_rev, fn {id,rev} -> %{:_id => id, :_rev => rev, :_deleted => true} end)
+
+      with {:ok, resp} <- HTTPoison.post(
+             "#{state[:hostname]}:#{state[:port]}/#{database}/_bulk_docs",
+             Poison.encode!(%{docs: final_id_rev}),
+             [{"Content-Type", "application/json"}]
+           ),
+           json_resp <- resp.body |> Poison.decode! do
+        {:reply, {:ok, json_resp}, state}
+      else e -> {:reply, {:error, e}, state}
+      end
+    else
+      {id, rev} = id_rev
+      with {:ok, resp} <- HTTPoison.delete(
+             "#{state[:hostname]}:#{state[:port]}/#{database}/#{id}",
+             [{"Accept", "application/json"}],
+             params: [rev: rev]
+           ),
+           %{"ok" => _ok} = json_res <- resp.body |> Poison.decode!
+        do {:reply, {:ok ,json_res}, state}
+        else e-> {:reply, {:error, e}, state}
+      end
+    end
+  end
+
 
   @doc """
   ## Options
