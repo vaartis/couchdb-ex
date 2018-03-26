@@ -100,8 +100,9 @@ defmodule CouchDBEx.Worker do
 
     with {:ok, resp} <- HTTPoison.put(
            "#{state[:hostname]}:#{state[:port]}/#{db_name}",
+           "",
            [],
-           %{n: final_opts[:replicas], q: final_opts[:shards]}
+           params: [n: final_opts[:replicas], q: final_opts[:shards]]
          ),
          %{"ok" => true} <- resp.body |> Poison.decode!
       do {:reply, :ok, state}
