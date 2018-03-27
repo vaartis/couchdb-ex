@@ -95,7 +95,7 @@ defmodule CouchDBEx.Worker.ChangesCommunicator do
         if code != 200 do
           modname = Map.fetch!(state[:watchers], id)
 
-          Logeer.error "Request to #{modname} finished with non-200 code (#{code})"
+          Logger.error "Request to #{modname} finished with non-200 code (#{code})"
           Logger.error "Stopping the #{modname} watcher"
 
           GenServer.cast(__MODULE__, {:remove_watcher, modname})
