@@ -68,11 +68,6 @@ defmodule CouchDBEx.Worker do
     end
   end
 
-  @doc """
-  ## Options
-
-  * `shards` - number of shards for this database, defaults to 8
-  """
   @impl true
   def handle_call({:db_create, db_name, opts}, _from, state) do
     default_opts = [shards: 8]
@@ -344,7 +339,7 @@ defmodule CouchDBEx.Worker do
     end
   end
 
-  def handle_call({:index_get_all, database}, _from, state) do
+  def handle_call({:index_list, database}, _from, state) do
     with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/#{database}/_index"),
          %{"indexes" => indexes, "total_rows" => total} <- resp.body |> Poison.decode!
       do {:reply, {:ok, indexes, total}, state}
