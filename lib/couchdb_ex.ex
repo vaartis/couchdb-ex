@@ -211,13 +211,10 @@ defmodule CouchDBEx.Worker do
   """
   @impl true
   def handle_call({:document_get, database, id, opts}, _from, state) do
-    default_opts = [attachmets: false]
-    final_opts = Keyword.merge(default_opts, opts)
-
     with {:ok, resp} <- HTTPoison.get(
            "#{state[:hostname]}:#{state[:port]}/#{database}/#{id}",
            [{"Accept", "application/json"}], # This header is required, because if we request attachments, it'll return JSON as binary data and cause an error
-           params: [attachments: final_opts[:attachments]]
+           params: opts
          ),
          json_resp <- resp.body |> Poison.decode! do
       if not Map.has_key?(json_resp, "error") do
