@@ -71,19 +71,18 @@ defmodule CouchDBEx.Worker do
   @doc """
   ## Options
 
-  * `replicas` - number of replicas for this database, defaults to 3
   * `shards` - number of shards for this database, defaults to 8
   """
   @impl true
   def handle_call({:db_create, db_name, opts}, _from, state) do
-    default_opts = [replicas: 3, shards: 8]
+    default_opts = [shards: 8]
     final_opts = Keyword.merge(default_opts, opts)
 
     with {:ok, resp} <- HTTPoison.put(
            "#{state[:hostname]}:#{state[:port]}/#{db_name}",
            "",
            [],
-           params: [n: final_opts[:replicas], q: final_opts[:shards]]
+           params: [q: final_opts[:shards]]
          ),
          %{"ok" => true} <- resp.body |> Poison.decode!
       do {:reply, :ok, state}
