@@ -1,441 +1,255 @@
-defmodule CouchDBEx.Worker do
-  use GenServer
+defmodule CouchDBEx do
 
-  defmodule ChangesTest do
-    use GenServer
-
-    def start_link(opts) do
-      GenServer.start_link(__MODULE__, nil, opts)
-    end
-
-    def init(_) do
-      {:ok, nil}
-    end
-
-    def handle_info({:couchdb_change, msg}, _) do
-      IO.inspect msg
-
-      {:noreply, nil}
-    end
-
-  end
-
-  @moduledoc """
-  ## TODO:
-
-  - [ ] `_stats`
-  - [ ] `_scheduler`
-  - [ ] `_session` - cookie session
-  - [ ] `_explain`
-  """
-
-  # Client
-
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args, name: __MODULE__)
-  end
-
-  # Server
-
-  @impl true
-  def init(args) do
-    args = Keyword.merge(
-      [
-        hostname: "http://localhost",
-        port: 5984
-      ],
-      args
-    )
-
-    children = [
-      {__MODULE__.ChangesCommunicator, args}
-    ]
-
-    Supervisor.start_link(children, strategy: :one_for_one, name: CouchDBEx.Worker.Supervisor)
-
-    {:ok, args}
-  end
-
-  @impl true
-  def handle_call(:couchdb_info, _from, state) do
-    with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}"),
-         json_resp <- resp.body |> Poison.decode!
-      do
-      {
-        :reply,
-        {:ok, json_resp},
-        state
-      }
-      else
-        e -> {:reply, e, state}
-    end
-  end
-
-
-  def handle_call({:db_exists?, db_name}, _from, state) do
-    with {:ok, resp} <- HTTPoison.head("#{state[:hostname]}:#{state[:port]}/#{db_name}")
-      do {:reply, {:ok, resp.status_code == 200}, state}
-      else e -> {:reply, {:error, e}, state}
-    end
-  end
-
-  def handle_call({:db_info, db_name}, _from, state) do
-    with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/#{db_name}"),
-         json_resp <- resp.body |> Poison.decode!
-      do {:reply, {:ok, json_resp}, state}
-      else e -> {:reply, {:error, e}, state}
-    end
-  end
+  @type couchdb_res :: {:ok, map} | {:error, term}
 
   @doc """
+  Queries the CouchDB server for some general information
+  about it (e.g. version)
+  """
+  @spec couchdb_info :: couchdb_res
+  def couchdb_info, do: GenServer.call(CouchDBEx.Worker, :couchdb_info)
+
+
+  ## Databases
+
+
+  @doc """
+  Checks if the specified database exists
+  """
+  @spec db_exists?(db_name :: String.t) :: {:ok, boolean} | {:error, term}
+  def db_exists?(db_name), do: GenServer.call(CouchDBEx.Worker, {:db_exists?, db_name})
+
+  @doc """
+  Get some general information about the database, this includes it's name,
+  size and clustering information.
+  """
+  @spec db_info(db_name :: String.t) :: couchdb_res
+  def db_info(db_name), do: GenServer.call(CouchDBEx.Worker, {:db_info, db_name})
+
+  @doc """
+  Create a new database.
+
+  The database name must be composed by following next rules:
+
+  * Name must begin with a lowercase letter (`a-z`)
+  * Lowercase characters (`a-z`)
+  * Digits (`0-9`)
+  * Any of the characters `_`, `$`, `(`, `)`, `+`, `-`, and `/`.
+
   ## Options
 
-  * `replicas` - number of replicas for this database, defaults to 3
   * `shards` - number of shards for this database, defaults to 8
   """
-  @impl true
-  def handle_call({:db_create, db_name, opts}, _from, state) do
-    default_opts = [replicas: 3, shards: 8]
-    final_opts = Keyword.merge(default_opts, opts)
-
-    with {:ok, resp} <- HTTPoison.put(
-           "#{state[:hostname]}:#{state[:port]}/#{db_name}",
-           "",
-           [],
-           params: [n: final_opts[:replicas], q: final_opts[:shards]]
-         ),
-         %{"ok" => true} <- resp.body |> Poison.decode!
-      do {:reply, :ok, state}
-      else e -> {:reply, {:error, e}, state}
-    end
-  end
-
-  @impl true
-  def handle_call({:db_delete, db_name}, _from, state) do
-    with {:ok, resp} <- HTTPoison.delete("#{state[:hostname]}:#{state[:port]}/#{db_name}"),
-         %{"ok" => true} <- resp.body |> Poison.decode!
-      do {:reply, :ok, state}
-      else
-        e -> {:reply, {:error, e}, state}
-    end
-  end
-
-  def handle_call({:db_compact, db_name}, _from, state) do
-    with {:ok, resp} <- HTTPoison.post(
-           "#{state[:hostname]}:#{state[:port]}/#{db_name}/_compact",
-           "",
-           [{"Content-Type", "application/json"}]
-         ),
-         %{"ok" => true} <- resp.body |> Poison.decode!
-      do {:reply, :ok, state}
-      else
-        e -> {:reply, {:error, e}, state}
-    end
-  end
-
-  def handle_call({:db_list}, _from, state) do
-    with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/_all_dbs"),
-         json_resp <- resp.body |> Poison.decode!
-      do {:reply, {:ok, json_resp}, state}
-      else e -> {:reply, {:error, e}, state}
-    end
-  end
-
-
-  @impl true
-  def handle_call(:uuid_get, _from, state) do
-    case uuid_get_impl(1, state) do
-      {:ok, [uuid]} -> {:reply, {:ok, uuid}, state}
-      e -> {:reply, e, state}
-    end
-  end
-  @impl true
-  def handle_call({:uuid_get, count}, _from, state), do: {:reply, uuid_get_impl(count, state), state}
-
+  @spec db_create(db_name :: String.t, opts :: keyword) :: :ok | {:error, term}
+  def db_create(db_name, opts \\ []), do: GenServer.call(CouchDBEx.Worker, {:db_create, db_name, opts})
 
   @doc """
-  Documents can have an `_id` field, in this case database will no attemt to generate a new one.
-  Inserting a list of documents will count as a bulk insert. This function also works as the update function.
+  Deletes the specified database, and all the documents and attachments contained within it.
   """
-  @impl true
-  def handle_call({:document_insert, database, document_or_documents}, _from, state) do
-    # A bulk insert
-    if is_list(document_or_documents) do
-      documents = document_or_documents
-
-      with {:ok, resp} <- HTTPoison.post(
-             "#{state[:hostname]}:#{state[:port]}/#{database}/_bulk_docs",
-             Poison.encode!(%{docs: documents}),
-             [{"Content-Type", "application/json"}]
-           ),
-           docs <- resp.body |> Poison.decode!
-        do {:reply, {:ok, docs}, state}
-        else e -> {:reply, {:error, e}, state}
-      end
-    else
-      document = document_or_documents
-
-      with {:ok, resp} <- HTTPoison.post(
-             "#{state[:hostname]}:#{state[:port]}/#{database}",
-             Poison.encode!(document),
-             [{"Content-Type", "application/json"}]
-           ),
-           %{"ok" => true, "id" => id, "rev" => rev} <- resp.body |> Poison.decode!
-        do {:reply, {:ok, [id: id, rev: rev]}, state}
-        else e -> {:reply, {:error, e}, state}
-      end
-    end
-  end
-
-  def handle_call({:document_list, database, opts}, _from, state) do
-    with {:ok, resp} <- HTTPoison.post(
-           "#{state[:hostname]}:#{state[:port]}/#{database}/_all_docs",
-           Enum.into(opts, %{}) |> Poison.encode!,
-           [{"Content-Type", "application/json"}]
-         ),
-         json_resp <- resp.body |> Poison.decode! do
-      if not Map.has_key?(json_resp, "error") do
-        {:reply, {:ok, json_resp}, state}
-      else
-        {:reply, {:error, json_resp}, state}
-      end
-    else e -> {:reply, e, state}
-    end
-  end
+  @spec db_delete(db_name :: String.t) :: :ok | {:error, term}
+  def db_delete(db_name), do: GenServer.call(CouchDBEx.Worker, {:db_delete, db_name})
 
   @doc """
+  Request compaction of the specified database.
+
+  If you want to know more, read [here](http://docs.couchdb.org/en/2.1.1/api/database/compact.html)
+  """
+  @spec db_compact(db_name :: String.t) :: :ok | {:error, term}
+  def db_compact(db_name), do: GenServer.call(CouchDBEx.Worker, {:db_compact, db_name})
+
+  @doc """
+  Get the list of all databases, this list includes system databases like `_users`
+  """
+  @spec db_list :: {:ok, [String.t]} | {:error, term}
+  def db_list, do: GenServer.call(CouchDBEx.Worker, {:db_list})
+
+
+  ## UUIDs
+
+
+  @doc """
+  Get a single UUID from the server
+  """
+  @spec uuid_get :: {:ok, String.t} | {:error, term}
+  def uuid_get, do: GenServer.call(CouchDBEx.Worker, {:uuid_get})
+
+  @doc """
+  Get several UUIDs from the server
+  """
+  @spec uuid_get(n :: integer) :: {:ok, [String.t]} | {:error, term}
+  def uuid_get(n), do: GenServer.call(CouchDBEx.Worker, {:uuid_get, n})
+
+
+  ## Documents
+
+  @doc """
+  Insert or update a single document, for multiple documents see `CouchDBEx.document_insert_many/2`.
+  """
+  @spec document_insert_one(db :: String.t, doc :: map) :: couchdb_res
+  def document_insert_one(db, doc), do: GenServer.call(CouchDBEx.Worker, {:document_insert, db, doc})
+
+  @doc """
+  Insert or update multiple documents, for a single document see `CouchDBEx.document_insert_one/2`.
+
+  Internally, this function will make a request to
+  [`_bulk_docs`](http://docs.couchdb.org/en/2.1.1/api/database/bulk-api.html#db-bulk-docs), that makes
+  it suitable for mass updates too
+  """
+  @spec document_insert_many(db :: String.t, docs :: [map]) :: {:ok, [map]} | {:error, term}
+  def document_insert_many(db, docs), do: GenServer.call(CouchDBEx.Worker, {:document_insert, db, docs})
+
+  @doc """
+  Lists all (or filtered) documents in the database, along with their number
+
+  Options are those from
+  [`_all_docs`](http://docs.couchdb.org/en/2.1.1/api/database/bulk-api.html#get--db-_all_docs)
+  """
+  @spec document_list(db :: String.t, opts :: keyword) :: couchdb_res
+  def document_list(db, opts \\ []), do: GenServer.call(CouchDBEx.Worker, {:document_list, db, opts})
+
+  @doc """
+  Get a document from the database.
+
   ## Options
 
   * `attachments` - should the request return full information about attachments
                     (includes full base64 encoded attachments into the request), `false` by default
   """
-  @impl true
-  def handle_call({:document_get, database, id, opts}, _from, state) do
-    with {:ok, resp} <- HTTPoison.get(
-           "#{state[:hostname]}:#{state[:port]}/#{database}/#{id}",
-           [{"Accept", "application/json"}], # This header is required, because if we request attachments, it'll return JSON as binary data and cause an error
-           params: opts
-         ),
-         json_resp <- resp.body |> Poison.decode! do
-      if not Map.has_key?(json_resp, "error") do
-        {:reply, {:ok, json_resp}, state}
-      else
-        {:reply, {:error, json_resp}, state}
-      end
-    else e -> {:reply, e, state}
-    end
-  end
+  @spec document_get(db :: String.t, id :: String.t, opts :: keyword) :: couchdb_res
+  def document_get(db, id, opts \\ []), do: GenServer.call(CouchDBEx.Worker, {:document_get, db, id, opts})
 
   @doc """
-  ## Options
-
-  * `limit` - maximum number of results returned. Default is 25
-  * `skip` - skip the first ‘n’ results
-  * `sort` – an array following sort syntax
-  * `fields` – an array specifying which fields of each object should be returned.
-               If it is omitted, the entire object is returned. More information provided in the section on filtering fields
-  * `use_index` - instruct a query to use a specific index. Specified either as "<design_document>" or ["<design_document>", "<index_name>"]
-  * `r` - Read quorum needed for the result. This defaults to 1, in which case the document found in the index is returned.
-          If set to a higher value, each document is read from at least that many replicas before it is returned in the results. This is likely to take more time
-          than using only the document stored locally with the index
-  * `bookmark` - a string that enables you to specify which page of results you require. Used for paging through result sets. Every query returns an opaque string
-                 under the bookmark key that can then be passed back in a query to get the next page of results.
-                 If any part of the selector query changes between requests, the results are undefined, defaults to nil
-  * `update` - whether to update the index prior to returning the result. Default is true
-  * `stable` - whether or not the view results should be returned from a “stable” set of shards
-  * `stale` - combination of `update: false` and `stable: true` options. Possible options: "ok", false (default)
-  * `execution_stats` - include execution statistics in the query response. Default: false
-
-  Options and their descriptions are taken from [here](http://docs.couchdb.org/en/2.1.1/api/database/find.html)
-  """
-  def handle_call({:document_find, database, selector, opts}, _from, state) do
-    final_opts = opts |>
-      Enum.into(%{}) |> # Transform options into a map
-      Map.put(:selector, selector) # Add the selector field
-
-    with {:ok, resp} <- HTTPoison.post(
-           "#{state[:hostname]}:#{state[:port]}/#{database}/_find",
-           Poison.encode!(final_opts),
-           [{"Content-Type", "application/json"}]
-         ),
-         %{"docs" => _docs} = json_res <- resp.body |> Poison.decode!
-    do {:reply, {:ok ,json_res}, state}
-    else e-> {:reply, {:error, e}, state}
-    end
-  end
-
-  @doc """
-  Either {id,rev} or [{id,rev}]
-  """
-  def handle_call({:document_delete, database, id_rev}, _from, state) do
-    if is_list(id_rev) do
-      final_id_rev = Enum.map(id_rev, fn {id,rev} -> %{:_id => id, :_rev => rev, :_deleted => true} end)
-
-      with {:ok, resp} <- HTTPoison.post(
-             "#{state[:hostname]}:#{state[:port]}/#{database}/_bulk_docs",
-             Poison.encode!(%{docs: final_id_rev}),
-             [{"Content-Type", "application/json"}]
-           ),
-           json_resp <- resp.body |> Poison.decode! do
-        {:reply, {:ok, json_resp}, state}
-      else e -> {:reply, {:error, e}, state}
-      end
-    else
-      {id, rev} = id_rev
-      with {:ok, resp} <- HTTPoison.delete(
-             "#{state[:hostname]}:#{state[:port]}/#{database}/#{id}",
-             [{"Accept", "application/json"}],
-             params: [rev: rev]
-           ),
-           %{"ok" => _ok} = json_res <- resp.body |> Poison.decode!
-        do {:reply, {:ok ,json_res}, state}
-        else e-> {:reply, {:error, e}, state}
-      end
-    end
-  end
-
-
-  @doc """
-  ## Options
-
-  * `content_type` - content type of the attachment in the standard format (e.g. `text/plain`), this option will set the
-                     `Content-Type` header for the request.
-  """
-  @impl true
-  def handle_call({:attachment_upload, database, id, {attachment_name, attachment_bindata}, rev, opts}, _from, state) do
-    with {:ok, resp} <- HTTPoison.put(
-           "#{state[:hostname]}:#{state[:port]}/#{database}/#{id}/#{attachment_name}",
-           attachment_bindata,
-           if(Keyword.has_key?(opts, :content_type), do: [{"Content-Type", opts[:content_type]}], else: []),
-           params: [rev: rev]
-         ),
-         %{"ok" => true, "id" => id, "rev" => rev} <- resp.body |> Poison.decode!
-      do {:reply, {:ok, [id: id, rev: rev]}, state}
-      else e -> {:reply, e, state}
-    end
-  end
-
-
-  @doc """
-  ## Notes
-  If `index` is a list, it is considered a list of indexing fields, otherwise
-  it is used as a full index specification.
+  Find a document in the database using the
+  [selector spec](http://docs.couchdb.org/en/2.1.1/api/database/find.html#find-selectors).
 
   ## Options
 
-  * `ddoc` - name of the design document in which the index will be created.
-             By default, each index will be created in its own design document.
-             Indexes can be grouped into design documents for efficiency. However, a change to
-             one index in a design document will invalidate all other indexes in the
-             same document (similar to views)
-  * `name` - name of the index. If no name is provided, a name will be generated automatically
-  * `type` - can be "json" or "text". Defaults to json
-  * `partial_filter_selector` - a selector to apply to documents at indexing time, creating
-             a partial index
-
+  Options and their description are can be found [here](http://docs.couchdb.org/en/2.1.1/api/database/find.html)
   """
-  def handle_call({:index_create, database, index, opts}, _from, state) do
-    final_index = if is_list(index) do
-      %{fields: index} # Is index is a list, consider it a list of indexing fields
-    else
-      index
-    end
-
-    final_opts = opts |> Enum.into(%{}) |> Map.put(:index, final_index)
-
-    with {:ok, resp} <- HTTPoison.post(
-           "#{state[:hostname]}:#{state[:port]}/#{database}/_index",
-           Poison.encode!(final_opts),
-           [{"Content-Type", "application/json"}]
-         ),
-         %{"result" => "created"} = json_res <- resp.body |> Poison.decode!
-      do {:reply, {:ok, json_res}, state}
-      else e -> {:reply, {:error, e}, state}
-    end
+  @spec document_find(db :: String.t, selector :: map, opts :: keyword) :: couchdb_res
+  def document_find(db, selector, opts \\ []) do
+    GenServer.call(CouchDBEx.Worker, {:document_find, db, selector, opts})
   end
 
-  def handle_call({:index_delete, database, ddoc, index_name}, _from, state) do
-    with {:ok, resp} <- HTTPoison.delete(
-           "#{state[:hostname]}:#{state[:port]}/#{database}/_index/#{ddoc}/json/#{index_name}"
-         ),
-         %{"ok" => true} <- resp.body |> Poison.decode!
-      do {:reply, :ok, state}
-      else e -> {:reply, {:error, e}, state}
-    end
-  end
+  @doc """
+  Delete a single document from the database.
+  """
+  @spec document_delete_one(db :: String.t, id :: String.t, rev :: String.t) :: :ok | {:error, term}
+  def document_delete_one(db, id, rev), do: GenServer.call(CouchDBEx.Worker, {:document_delete, db, {id, rev}})
 
-  def handle_call({:index_get_all, database}, _from, state) do
-    with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/#{database}/_index"),
-         %{"indexes" => indexes, "total_rows" => total} <- resp.body |> Poison.decode!
-      do {:reply, {:ok, indexes, total}, state}
-      else e -> {:reply, {:error, e}, state}
-    end
-  end
+  @doc """
+  Delete multiple documents from the database, `id_rev` is an array of documents' `{id, revision}`.
+
+  Internally, this function asks `_bulk_docs` to set `_deleted` for those documents
+  """
+  @spec document_delete_many(db :: String.t, id_rev :: [{String.t, String.t}]) :: couchdb_res
+  def document_delete_many(db, id_rev), do: GenServer.call(CouchDBEx.Worker, {:document_delete, db, id_rev})
+
+
+  ## Attachments
 
 
   @doc """
+  Upload an attachment to the document.
+
+  `id` is the document id to which the attachment will be added, `name` is the
+  attacument's name, `bindata` is binary data which will be uploaded (essentialy, anything that
+  satisfies the `is_binary/1` constraint), `doc_rev` is current document revision.
+
   ## Options
 
-  * `create_target` - should the target of replication be created or not (defaults to `false`)
-  * `continuous` - should the replication be continuous
-  * `cancel` - cancel the continuous replication (note that cancel request should be identical to the
-                replication request, except the addition of `cancel`)
+  * `content_type` - content type of the attachment in the standard format (e.g. `text/plain`),
+                     this option will set the `Content-Type` header for the request.
   """
-  def handle_call({:replicate, source, target, opts}, _from, state) do
-    default_opts = [
-      create_target: false,
-      continuous: false,
-      cancel: false
-    ]
-
-    final_opts = Keyword.merge(default_opts, opts)
-
-    with {:ok, resp} <- HTTPoison.post(
-           "#{state[:hostname]}:#{state[:port]}/_replicate",
-           %{
-             source: source,
-             target: target,
-             create_target: final_opts[:create_target],
-             continuous: final_opts[:continuous],
-             cancel: final_opts[:cancel]
-           } |> Poison.encode!,
-           [{"Content-Type", "application/json"}]
-         ),
-         %{"ok" => true} = json_resp <- resp.body |> Poison.decode!
-      do {:reply, {:ok, json_resp}, state}
-      else e -> {:reply, {:error, e}, state}
-    end
+  @spec attachment_upload(
+    db :: String.t, id :: String.t, name :: String.t, bindata :: binary, doc_rev :: String.t, opts :: keyword
+  ) :: {:ok, [id: String.t, rev: String.t]} | {:error, term}
+  def attachment_upload(db, id, name, bindata, doc_rev, opts \\ []) do
+    GenServer.call(CouchDBEx.Worker, {:attachment_upload, db, id, {name, bindata}, doc_rev, opts})
   end
+
+
+  ## Indexes
 
 
   @doc """
-  Any option can be nil here, that just skips it. If `section` is nil, key is also `ignored`
+  Create an index.
+
+  If `index` is a list, it is considered a list of indexing fields, otherwise it is used
+  as a full [index specification](http://docs.couchdb.org/en/2.1.1/api/database/find.html#api-db-find-index).
+  Options are as specified there too.
+
   """
-  def handle_call({:config_get, node_name, section, key}, _from, state) do
-    addr = ("#{state[:hostname]}:#{state[:port]}/"
-      <> (if not is_nil(node_name), do: "_node/#{node_name}/", else: "")
-      <> "_config/"
-      <> (if not is_nil(section), do: "#{section}/", else: "")
-      <> (if not is_nil(section) and not is_nil(key), do: "#{key}/", else: ""))
-
-    with {:ok, resp} <- HTTPoison.get(addr),
-         json_resp <- resp.body |> Poison.decode!
-      do {:reply, {:ok, json_resp}, state}
-      else e -> {:reply, {:error, e}, state}
-    end
+  @spec index_create(db :: String.t, index :: map | [String.t], opts :: keyword) :: couchdb_res
+  def index_create(db, index, opts \\ []) do
+    GenServer.call(CouchDBEx.Worker, {:index_create, db, index, opts})
   end
 
-  def handle_call({:config_set, node_name, section, key, value}, _from, state) do
-    addr = ("#{state[:hostname]}:#{state[:port]}/"
-      <> (if not is_nil(node_name), do: "_node/#{node_name}/", else: "")
-      <> "_config/#{section}/#{key}")
-
-    with {:ok, resp} <- HTTPoison.put(addr, Poison.encode!(value)),
-         json_resp <- resp.body |> Poison.decode!
-      do {:reply, {:ok, json_resp}, state}
-      else e -> {:reply, {:error, e}, state}
-    end
+  @doc """
+  Delete the index `index_name` from the specified design document `ddoc`.
+  """
+  @spec index_delete(db :: String.t, ddoc :: String.t, index_name :: String.t) :: :ok | {:error, term}
+  def index_delete(db, ddoc, index_name) do
+    GenServer.call(CouchDBEx.Worker, {:index_delete, db, ddoc, index_name})
   end
+
+  @doc """
+  Lists all indexes and their count.
+
+  This function returns it's data in the following format:
+  `{:ok, a list of index specifications, total number of indexes}`.
+  Those specifications are described
+  [here](http://docs.couchdb.org/en/2.1.1/api/database/find.html#get--db-_index)
+  """
+  @spec index_list(db :: String.t) :: {:ok, [map], integer} | {:error, term}
+  def index_list(db), do: GenServer.call(CouchDBEx.Worker, {:index_list, db})
+
+
+  ## Replication
+
+
+  @doc """
+  Replicate a database
+
+  Options are as desribed [here](http://docs.couchdb.org/en/2.1.1/api/server/common.html#replicate),
+  except that source and target are already provided
+  """
+  @spec replicate(src :: String.t, target :: String.t, opts :: keyword) :: couchdb_res
+  def replicate(src, target, opts \\ []), do: GenServer.call(CouchDBEx.Worker, {:replicate, src, target, opts})
+
+
+  ## Config
+
+
+  @doc """
+  Set the configuration option for the CouchDB server.
+
+  Any option can be nil here, that just goes a level up. If `section` is nil, the key is also ignored.
+  """
+  @spec config_get(
+    node_name :: String.t | nil,
+    section :: String.t | nil,
+    key :: String.t | nil
+  ) :: couchdb_res
+  def config_get(node_name \\ nil, section \\ nil, key \\ nil) do
+    GenServer.call(CouchDBEx.Worker, {:config_get, node_name, section, key})
+  end
+
+  @doc """
+  Set a configuration option for the CouchDB server.
+  """
+  @spec config_set(
+    node_name :: String.t,
+    section :: String.t,
+    key :: String.t,
+    value :: String.t
+  ) :: couchdb_res
+  def config_set(node_name, section, key, value) do
+    GenServer.call(CouchDBEx.Worker, {:config_set, node_name, section, key, value})
+  end
+
+
+  ## Changes
 
 
   @doc """
@@ -444,9 +258,39 @@ defmodule CouchDBEx.Worker do
   `watcher_name` is the process name the caller wants the watcher to be known as,
   the watcher may set this name on start (it will be passed as `:name` in the options
   list) so that other processes could communicate with it, otherwise it is used only as a `Supervisor` id.
-  This facilitates module reuse, as one might want to use same modules on different
-  tables. `modname` is the actual module that will be passed to the supervisor, which
+  This facilitates module reuse, as one might want to use same modules on different databases.
+  `modname` is the actual module that will be passed to the supervisor, which
   in turn will start it.
+
+  ## The watching module
+
+  The module passed to this function will periodically receive update messages from the database
+  in the tuple with `:couchdb_change` as it's first element and the change as the second element.
+  If the module crashes, it will be restarted by a supervisor. To stop the watcher and remove it,
+  see `CouchDBEx.changes_unsub/1`
+
+  ## Module example
+
+      defmodule ChangesTest do
+        use GenServer
+
+        def start_link(opts) do
+          GenServer.start_link(__MODULE__, nil, opts)
+        end
+
+        def init(_) do
+          {:ok, nil}
+        end
+
+        def handle_info({:couchdb_change, msg}, _) do
+          # Just logs the change to the stdout
+          IO.inspect msg
+
+          {:noreply, nil}
+        end
+
+      end
+
 
   ## Options
 
@@ -459,29 +303,15 @@ defmodule CouchDBEx.Worker do
   * `heartbeat` is `25`, this is needed to keep the connection alive,
                 trying to change it **WILL RAISE a RuntimeError**
   """
-  @impl true
-  def handle_cast({:changes_sub, database, modname, watcher_name, opts}, state) do
-    GenServer.cast(
-      CouchDBEx.Worker.ChangesCommunicator,
-      {:add_watcher, database, modname, watcher_name, opts}
-    )
-
-    {:noreply, state}
+  def changes_sub(db, modname, watcher_name, opts \\ []) do
+    GenServer.call(CouchDBEx.Worker, {:changes_sub, db, modname, watcher_name, opts})
   end
 
-  def handle_cast({:changes_unsub, modname}, state) do
-    GenServer.cast(CouchDBEx.Worker.ChangesCommunicator, {:remove_watcher, modname})
+  @doc """
+  Unsubscribe the `modname` watcher from changes in the database.
 
-    {:noreply, state}
-  end
-
-
-  defp uuid_get_impl(count, state) do
-    with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/_uuids", [], params: [count: count]),
-         %{"uuids" => uuids} <- resp.body |> Poison.decode!
-      do {:ok, uuids}
-      else e -> {:error, e}
-    end
-  end
+  `modname` is the module's name as known to the supervisor, not the actual running module.
+  """
+  def changes_unsub(modname), do: GenServer.call(CouchDBEx.Worker, {:changes_unsub, modname})
 
 end

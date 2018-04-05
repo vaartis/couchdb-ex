@@ -17,8 +17,7 @@ defmodule CouchDBEx.MixProject do
       extra_applications: [
         :logger,
         :httpoison
-      ],
-      mod: {CouchDBEx.Application, []}
+      ]
     ]
   end
 
@@ -28,7 +27,8 @@ defmodule CouchDBEx.MixProject do
       {:httpoison, "~> 1.0"},
       {:poison, "~> 3.1"},
 
-      {:dialyxir, "~> 0.5", only: [:dev], runtime: false}
+      {:dialyxir, "~> 0.5", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.16", only: :dev, runtime: false}
     ]
   end
 end

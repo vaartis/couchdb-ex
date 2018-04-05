@@ -128,10 +128,6 @@ defmodule CouchDBEx.Worker do
   def handle_call({:uuid_get, count}, _from, state), do: {:reply, uuid_get_impl(count, state), state}
 
 
-  @doc """
-  Documents can have an `_id` field, in this case database will no attemt to generate a new one.
-  Inserting a list of documents will count as a bulk insert. This function also works as the update function.
-  """
   @impl true
   def handle_call({:document_insert, database, document_or_documents}, _from, state) do
     # A bulk insert
@@ -178,12 +174,6 @@ defmodule CouchDBEx.Worker do
     end
   end
 
-  @doc """
-  ## Options
-
-  * `attachments` - should the request return full information about attachments
-                    (includes full base64 encoded attachments into the request), `false` by default
-  """
   @impl true
   def handle_call({:document_get, database, id, opts}, _from, state) do
     with {:ok, resp} <- HTTPoison.get(
@@ -201,28 +191,6 @@ defmodule CouchDBEx.Worker do
     end
   end
 
-  @doc """
-  ## Options
-
-  * `limit` - maximum number of results returned. Default is 25
-  * `skip` - skip the first ‘n’ results
-  * `sort` – an array following sort syntax
-  * `fields` – an array specifying which fields of each object should be returned.
-               If it is omitted, the entire object is returned. More information provided in the section on filtering fields
-  * `use_index` - instruct a query to use a specific index. Specified either as "<design_document>" or ["<design_document>", "<index_name>"]
-  * `r` - Read quorum needed for the result. This defaults to 1, in which case the document found in the index is returned.
-          If set to a higher value, each document is read from at least that many replicas before it is returned in the results. This is likely to take more time
-          than using only the document stored locally with the index
-  * `bookmark` - a string that enables you to specify which page of results you require. Used for paging through result sets. Every query returns an opaque string
-                 under the bookmark key that can then be passed back in a query to get the next page of results.
-                 If any part of the selector query changes between requests, the results are undefined, defaults to nil
-  * `update` - whether to update the index prior to returning the result. Default is true
-  * `stable` - whether or not the view results should be returned from a “stable” set of shards
-  * `stale` - combination of `update: false` and `stable: true` options. Possible options: "ok", false (default)
-  * `execution_stats` - include execution statistics in the query response. Default: false
-
-  Options and their descriptions are taken from [here](http://docs.couchdb.org/en/2.1.1/api/database/find.html)
-  """
   def handle_call({:document_find, database, selector, opts}, _from, state) do
     final_opts = opts |>
       Enum.into(%{}) |> # Transform options into a map
@@ -242,19 +210,11 @@ defmodule CouchDBEx.Worker do
   @doc """
   Either {id,rev} or [{id,rev}]
   """
-  def handle_call({:document_delete, database, id_rev}, _from, state) do
+  def handle_call({:document_delete, database, id_rev}, from, state) do
     if is_list(id_rev) do
       final_id_rev = Enum.map(id_rev, fn {id,rev} -> %{:_id => id, :_rev => rev, :_deleted => true} end)
 
-      with {:ok, resp} <- HTTPoison.post(
-             "#{state[:hostname]}:#{state[:port]}/#{database}/_bulk_docs",
-             Poison.encode!(%{docs: final_id_rev}),
-             [{"Content-Type", "application/json"}]
-           ),
-           json_resp <- resp.body |> Poison.decode! do
-        {:reply, {:ok, json_resp}, state}
-      else e -> {:reply, {:error, e}, state}
-      end
+      handle_call({:document_insert, database, final_id_rev}, from, state)
     else
       {id, rev} = id_rev
       with {:ok, resp} <- HTTPoison.delete(
@@ -269,15 +229,10 @@ defmodule CouchDBEx.Worker do
     end
   end
 
-
-  @doc """
-  ## Options
-
-  * `content_type` - content type of the attachment in the standard format (e.g. `text/plain`), this option will set the
-                     `Content-Type` header for the request.
-  """
   @impl true
-  def handle_call({:attachment_upload, database, id, {attachment_name, attachment_bindata}, rev, opts}, _from, state) do
+  def handle_call(
+    {:attachment_upload, database, id, {attachment_name, attachment_bindata}, rev, opts}, _from, state
+  ) when is_binary(attachment_bindata) do
     with {:ok, resp} <- HTTPoison.put(
            "#{state[:hostname]}:#{state[:port]}/#{database}/#{id}/#{attachment_name}",
            attachment_bindata,
@@ -357,23 +312,18 @@ defmodule CouchDBEx.Worker do
                 replication request, except the addition of `cancel`)
   """
   def handle_call({:replicate, source, target, opts}, _from, state) do
-    default_opts = [
-      create_target: false,
-      continuous: false,
-      cancel: false
-    ]
 
-    final_opts = Keyword.merge(default_opts, opts)
+    final_opts = Keyword.merge(
+      [
+        source: source,
+        target: target
+      ],
+      opts
+    ) |> Enum.into(%{})
 
     with {:ok, resp} <- HTTPoison.post(
            "#{state[:hostname]}:#{state[:port]}/_replicate",
-           %{
-             source: source,
-             target: target,
-             create_target: final_opts[:create_target],
-             continuous: final_opts[:continuous],
-             cancel: final_opts[:cancel]
-           } |> Poison.encode!,
+           Poison.encode!(final_opts),
            [{"Content-Type", "application/json"}]
          ),
          %{"ok" => true} = json_resp <- resp.body |> Poison.decode!
@@ -450,6 +400,7 @@ defmodule CouchDBEx.Worker do
     {:noreply, state}
   end
 
+  ## Helpers
 
   defp uuid_get_impl(count, state) do
     with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/_uuids", [], params: [count: count]),

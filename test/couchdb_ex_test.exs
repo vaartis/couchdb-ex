@@ -2,7 +2,15 @@ defmodule CouchDBExTest do
   use ExUnit.Case
   doctest CouchDBEx
 
-  test "greets the world" do
-    assert CouchDBEx.hello() == :world
+  setup_all do
+    children = [
+      {CouchDBEx.Worker, [hostname: "http://couchdb:couchdb@localhost"]}
+    ]
+
+    opts = [strategy: :one_for_one, name: CouchDBEx.Test.Supervisor]
+    Supervisor.start_link(children, opts)
+
+    :ok
   end
+
 end
