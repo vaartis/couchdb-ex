@@ -102,4 +102,18 @@ defmodule CouchDBExTest do
     assert match?({:error, _}, CouchDBEx.document_get("couchdb-ex-test", docid))
   end
 
+  test "document_delete_many" do
+    seed = ExUnit.configuration[:seed]
+
+    {:ok, inserted_docs} =
+      Enum.map(seed..seed + 99, &(%{test_value: &1}))
+      |> (&CouchDBEx.document_insert_many("couchdb-ex-test", &1)).()
+
+    {:ok, deleted_info} =
+      CouchDBEx.document_delete_many("couchdb-ex-test", Enum.map(inserted_docs, &({&1["id"], &1["rev"]})))
+
+    Enum.each(deleted_info, fn e -> assert match?(%{"ok" => true}, e) end)
+
+  end
+
 end
