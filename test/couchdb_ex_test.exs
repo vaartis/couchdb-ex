@@ -73,12 +73,22 @@ defmodule CouchDBExTest do
     assert match?({:ok, %{"test_value" => 1}}, CouchDBEx.document_get("couchdb-ex-test", id))
   end
 
-  test "document_insert_many" do
-    {:ok, [doc1, doc2]} = CouchDBEx.document_insert_many("couchdb-ex-test", [%{test_value: 1}, %{test_value: 2}])
+  test "document_insert_many+document_list" do
+    seed = ExUnit.configuration[:seed]
 
-    {id1, id2} = {doc1["id"], doc2["id"]}
+    {:ok, _} =
+      Enum.map(seed..seed + 99, &(%{test_value: &1}))
+      |> (&CouchDBEx.document_insert_many("couchdb-ex-test", &1)).()
 
-    refute is_nil(id1) && is_nil(id2)
+    {:ok, %{"rows" => got_docs, "total_rows" => total_count}} =
+      CouchDBEx.document_list("couchdb-ex-test", include_docs: true)
+
+    assert total_count == 100
+
+    got_docs
+    |> Enum.with_index
+    |> Enum.each(fn {e, ind} ->
+      assert e["doc"]["test_value"] == seed + ind
+    end)
   end
-
 end
