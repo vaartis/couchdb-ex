@@ -85,8 +85,8 @@ defmodule CouchDBEx do
   @doc """
   Insert or update a single document, for multiple documents see `CouchDBEx.document_insert_many/2`.
   """
-  @spec document_insert_one(db :: String.t, doc :: map) :: couchdb_res
-  def document_insert_one(db, doc), do: GenServer.call(CouchDBEx.Worker, {:document_insert, db, doc})
+  @spec document_insert_one(doc :: map, db :: String.t) :: couchdb_res
+  def document_insert_one(doc, db), do: GenServer.call(CouchDBEx.Worker, {:document_insert, doc, db})
 
   @doc """
   Insert or update multiple documents, for a single document see `CouchDBEx.document_insert_one/2`.
@@ -95,8 +95,8 @@ defmodule CouchDBEx do
   [`_bulk_docs`](http://docs.couchdb.org/en/2.1.1/api/database/bulk-api.html#db-bulk-docs), that makes
   it suitable for mass updates too
   """
-  @spec document_insert_many(db :: String.t, docs :: [map]) :: {:ok, [map]} | {:error, term}
-  def document_insert_many(db, docs), do: GenServer.call(CouchDBEx.Worker, {:document_insert, db, docs})
+  @spec document_insert_many(docs :: [map], db :: String.t) :: {:ok, [map]} | {:error, term}
+  def document_insert_many(docs, db), do: GenServer.call(CouchDBEx.Worker, {:document_insert, docs, db})
 
   @doc """
   Lists all (or filtered) documents in the database, along with their number
@@ -115,8 +115,8 @@ defmodule CouchDBEx do
   * `attachments` - should the request return full information about attachments
                     (includes full base64 encoded attachments into the request), `false` by default
   """
-  @spec document_get(db :: String.t, id :: String.t, opts :: keyword) :: couchdb_res
-  def document_get(db, id, opts \\ []), do: GenServer.call(CouchDBEx.Worker, {:document_get, db, id, opts})
+  @spec document_get(id :: String.t, db :: String.t, opts :: keyword) :: couchdb_res
+  def document_get(id, db, opts \\ []), do: GenServer.call(CouchDBEx.Worker, {:document_get, id, db, opts})
 
   @doc """
   Find a document in the database using the
@@ -126,24 +126,24 @@ defmodule CouchDBEx do
 
   Options and their description are can be found [here](http://docs.couchdb.org/en/2.1.1/api/database/find.html)
   """
-  @spec document_find(db :: String.t, selector :: map, opts :: keyword) :: couchdb_res
-  def document_find(db, selector, opts \\ []) do
-    GenServer.call(CouchDBEx.Worker, {:document_find, db, selector, opts})
+  @spec document_find(selector :: map, db :: String.t, opts :: keyword) :: couchdb_res
+  def document_find(selector, db, opts \\ []) do
+    GenServer.call(CouchDBEx.Worker, {:document_find, selector, db, opts})
   end
 
   @doc """
   Delete a single document from the database.
   """
-  @spec document_delete_one(db :: String.t, id :: String.t, rev :: String.t) :: :ok | {:error, term}
-  def document_delete_one(db, id, rev), do: GenServer.call(CouchDBEx.Worker, {:document_delete, db, {id, rev}})
+  @spec document_delete_one(id :: String.t, rev :: String.t, db :: String.t) :: :ok | {:error, term}
+  def document_delete_one(id, rev, db), do: GenServer.call(CouchDBEx.Worker, {:document_delete, {id, rev}, db})
 
   @doc """
   Delete multiple documents from the database, `id_rev` is an array of documents' `{id, revision}`.
 
   Internally, this function asks `_bulk_docs` to set `_deleted` for those documents
   """
-  @spec document_delete_many(db :: String.t, id_rev :: [{String.t, String.t}]) :: couchdb_res
-  def document_delete_many(db, id_rev), do: GenServer.call(CouchDBEx.Worker, {:document_delete, db, id_rev})
+  @spec document_delete_many(id_rev :: [{String.t, String.t}], db :: String.t) :: couchdb_res
+  def document_delete_many(id_rev, db), do: GenServer.call(CouchDBEx.Worker, {:document_delete, id_rev, db})
 
 
   ## Attachments
@@ -180,9 +180,9 @@ defmodule CouchDBEx do
   Options are as specified there too.
 
   """
-  @spec index_create(db :: String.t, index :: map | [String.t], opts :: keyword) :: couchdb_res
-  def index_create(db, index, opts \\ []) do
-    GenServer.call(CouchDBEx.Worker, {:index_create, db, index, opts})
+  @spec index_create(index :: map | [String.t], db :: String.t, opts :: keyword) :: couchdb_res
+  def index_create(index, db, opts \\ []) do
+    GenServer.call(CouchDBEx.Worker, {:index_create, index, db, opts})
   end
 
   @doc """

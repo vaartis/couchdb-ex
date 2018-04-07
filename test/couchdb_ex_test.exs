@@ -64,13 +64,13 @@ defmodule CouchDBExTest do
   end
 
   test "document_insert_one" do
-    {:ok, doc} = CouchDBEx.document_insert_one("couchdb-ex-test", %{test_value: 1})
+    {:ok, doc} = CouchDBEx.document_insert_one(%{test_value: 1}, "couchdb-ex-test")
 
     id = doc[:id]
 
     refute is_nil(id)
 
-    assert match?({:ok, %{"test_value" => 1}}, CouchDBEx.document_get("couchdb-ex-test", id))
+    assert match?({:ok, %{"test_value" => 1}}, CouchDBEx.document_get(id, "couchdb-ex-test"))
   end
 
   test "document_insert_many+document_list" do
@@ -78,7 +78,7 @@ defmodule CouchDBExTest do
 
     {:ok, _} =
       Enum.map(seed..seed + 99, &(%{test_value: &1}))
-      |> (&CouchDBEx.document_insert_many("couchdb-ex-test", &1)).()
+      |> CouchDBEx.document_insert_many("couchdb-ex-test")
 
     {:ok, %{"rows" => got_docs, "total_rows" => total_count}} =
       CouchDBEx.document_list("couchdb-ex-test", include_docs: true)
@@ -93,13 +93,13 @@ defmodule CouchDBExTest do
   end
 
   test "document_delete_one" do
-    {:ok, [id: docid, rev: docrev]} = CouchDBEx.document_insert_one("couchdb-ex-test", %{test_value: 1})
+    {:ok, [id: docid, rev: docrev]} = CouchDBEx.document_insert_one(%{test_value: 1}, "couchdb-ex-test")
 
-    assert match?({:ok, _}, CouchDBEx.document_get("couchdb-ex-test", docid))
+    assert match?({:ok, _}, CouchDBEx.document_get(docid, "couchdb-ex-test"))
 
-    assert match?({:ok, %{"ok" => true}}, CouchDBEx.document_delete_one("couchdb-ex-test", docid, docrev))
+    assert match?({:ok, %{"ok" => true}}, CouchDBEx.document_delete_one(docid, docrev, "couchdb-ex-test"))
 
-    assert match?({:error, _}, CouchDBEx.document_get("couchdb-ex-test", docid))
+    assert match?({:error, _}, CouchDBEx.document_get(docid, "couchdb-ex-test"))
   end
 
   test "document_delete_many" do
@@ -107,13 +107,13 @@ defmodule CouchDBExTest do
 
     {:ok, inserted_docs} =
       Enum.map(seed..seed + 99, &(%{test_value: &1}))
-      |> (&CouchDBEx.document_insert_many("couchdb-ex-test", &1)).()
+      |> CouchDBEx.document_insert_many("couchdb-ex-test")
 
     {:ok, deleted_info} =
-      CouchDBEx.document_delete_many("couchdb-ex-test", Enum.map(inserted_docs, &({&1["id"], &1["rev"]})))
+      inserted_docs
+      |> Enum.map(&({&1["id"], &1["rev"]}))
+      |> CouchDBEx.document_delete_many("couchdb-ex-test")
 
     Enum.each(deleted_info, fn e -> assert match?(%{"ok" => true}, e) end)
-
   end
-
 end
