@@ -9,6 +9,9 @@ before_script:
   - docker pull couchdb:2
   - docker run -p 5984:5984 -e COUCHDB_USER=couchdb -e COUCHDB_PASSWORD=couchdb --detach --name couchdb couchdb:2
 
+script:
+  - mix coveralls.travis # This also runs the tests
+
 elixir:
   - 1.6.4
 
