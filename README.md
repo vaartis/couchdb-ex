@@ -14,7 +14,11 @@ First, add the couchdb worker to your supervisor
 
 ```elixir
     children = [
-      {CouchDBEx.Worker, [hostname: "http://couchdb:couchdb@localhost"]}
+      {CouchDBEx.Worker, [
+          hostname: "http://localhost",
+          basic_auth_username: "couchdb",
+          basic_auth_password: "couchdb"
+        ]}
     ]
 
     opts = [strategy: :one_for_one, name: Application.Supervisor]

@@ -4,7 +4,11 @@ defmodule CouchDBExTest do
 
   setup_all do
     children = [
-      {CouchDBEx.Worker, [hostname: "http://couchdb:couchdb@localhost"]}
+      {CouchDBEx.Worker, [
+          hostname: "http://localhost",
+          basic_auth_username: "couchdb",
+          basic_auth_password: "couchdb"
+        ]}
     ]
 
     opts = [strategy: :one_for_one, name: CouchDBEx.Test.Supervisor]

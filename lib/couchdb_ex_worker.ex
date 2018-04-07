@@ -1,6 +1,8 @@
 defmodule CouchDBEx.Worker do
   use GenServer
 
+  alias CouchDBEx.HTTPClient
+
   @moduledoc """
   ## TODO:
 
@@ -20,6 +22,9 @@ defmodule CouchDBEx.Worker do
 
   @impl true
   def init(args) do
+    alias __MODULE__.AuthAgent
+
+    # Some default options..
     args = Keyword.merge(
       [
         hostname: "http://localhost",
@@ -29,17 +34,35 @@ defmodule CouchDBEx.Worker do
     )
 
     children = [
-      {__MODULE__.ChangesCommunicator, args}
+      {__MODULE__.ChangesCommunicator, args},
+      %{
+        id: AuthAgent,
+        start: {Agent, :start_link, [fn -> %{} end, [name: AuthAgent]]}
+      }
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: CouchDBEx.Worker.Supervisor)
+
+    # If options contain basic auth data, pass it to the auth agent and remove
+    # those options
+    args = if Keyword.has_key?(args, :basic_auth_username) and Keyword.has_key?(args, :basic_auth_password) do
+      Agent.update(AuthAgent, fn st ->
+        Map.put(st, :basic_auth, Base.encode64("#{args[:basic_auth_username]}:#{args[:basic_auth_password]}"))
+      end)
+
+      args
+      |> Keyword.delete(:basic_auth_username)
+      |> Keyword.delete(:basic_auth_password)
+    else
+      args
+    end
 
     {:ok, args}
   end
 
   @impl true
   def handle_call(:couchdb_info, _from, state) do
-    with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}"),
+    with {:ok, resp} <- HTTPClient.get("#{state[:hostname]}:#{state[:port]}"),
          json_resp <- resp.body |> Poison.decode!
       do
       {
@@ -54,14 +77,14 @@ defmodule CouchDBEx.Worker do
 
 
   def handle_call({:db_exists?, db_name}, _from, state) do
-    with {:ok, resp} <- HTTPoison.head("#{state[:hostname]}:#{state[:port]}/#{db_name}")
+    with {:ok, resp} <- HTTPClient.head("#{state[:hostname]}:#{state[:port]}/#{db_name}")
       do {:reply, {:ok, resp.status_code == 200}, state}
       else e -> {:reply, {:error, e}, state}
     end
   end
 
   def handle_call({:db_info, db_name}, _from, state) do
-    with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/#{db_name}"),
+    with {:ok, resp} <- HTTPClient.get("#{state[:hostname]}:#{state[:port]}/#{db_name}"),
          json_resp <- resp.body |> Poison.decode!
       do {:reply, {:ok, json_resp}, state}
       else e -> {:reply, {:error, e}, state}
@@ -73,7 +96,7 @@ defmodule CouchDBEx.Worker do
     default_opts = [shards: 8]
     final_opts = Keyword.merge(default_opts, opts)
 
-    with {:ok, resp} <- HTTPoison.put(
+    with {:ok, resp} <- HTTPClient.put(
            "#{state[:hostname]}:#{state[:port]}/#{db_name}",
            "",
            [],
@@ -87,7 +110,7 @@ defmodule CouchDBEx.Worker do
 
   @impl true
   def handle_call({:db_delete, db_name}, _from, state) do
-    with {:ok, resp} <- HTTPoison.delete("#{state[:hostname]}:#{state[:port]}/#{db_name}"),
+    with {:ok, resp} <- HTTPClient.delete("#{state[:hostname]}:#{state[:port]}/#{db_name}"),
          %{"ok" => true} <- resp.body |> Poison.decode!
       do {:reply, :ok, state}
       else
@@ -96,7 +119,7 @@ defmodule CouchDBEx.Worker do
   end
 
   def handle_call({:db_compact, db_name}, _from, state) do
-    with {:ok, resp} <- HTTPoison.post(
+    with {:ok, resp} <- HTTPClient.post(
            "#{state[:hostname]}:#{state[:port]}/#{db_name}/_compact",
            "",
            [{"Content-Type", "application/json"}]
@@ -109,7 +132,7 @@ defmodule CouchDBEx.Worker do
   end
 
   def handle_call({:db_list}, _from, state) do
-    with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/_all_dbs"),
+    with {:ok, resp} <- HTTPClient.get("#{state[:hostname]}:#{state[:port]}/_all_dbs"),
          json_resp <- resp.body |> Poison.decode!
       do {:reply, {:ok, json_resp}, state}
       else e -> {:reply, {:error, e}, state}
@@ -136,7 +159,7 @@ defmodule CouchDBEx.Worker do
     if is_list(document_or_documents) do
       documents = document_or_documents
 
-      with {:ok, resp} <- HTTPoison.post(
+      with {:ok, resp} <- HTTPClient.post(
              "#{state[:hostname]}:#{state[:port]}/#{database}/_bulk_docs",
              Poison.encode!(%{docs: documents}),
              [{"Content-Type", "application/json"}]
@@ -148,7 +171,7 @@ defmodule CouchDBEx.Worker do
     else
       document = document_or_documents
 
-      with {:ok, resp} <- HTTPoison.post(
+      with {:ok, resp} <- HTTPClient.post(
              "#{state[:hostname]}:#{state[:port]}/#{database}",
              Poison.encode!(document),
              [{"Content-Type", "application/json"}]
@@ -166,7 +189,7 @@ defmodule CouchDBEx.Worker do
     # Pass an empty json object, because CouchDB will error if it sees an empty string here
     maybe_body = unless(is_nil(maybe_keys), do: %{keys: maybe_keys} |> Poison.encode!, else: "{}")
 
-    with {:ok, resp} <- HTTPoison.post(
+    with {:ok, resp} <- HTTPClient.post(
            "#{state[:hostname]}:#{state[:port]}/#{database}/_all_docs",
            maybe_body,
            [{"Content-Type", "application/json"}],
@@ -184,7 +207,7 @@ defmodule CouchDBEx.Worker do
 
   @impl true
   def handle_call({:document_get, id, database, opts}, _from, state) do
-    with {:ok, resp} <- HTTPoison.get(
+    with {:ok, resp} <- HTTPClient.get(
            "#{state[:hostname]}:#{state[:port]}/#{database}/#{id}",
            [{"Accept", "application/json"}], # This header is required, because if we request attachments, it'll return JSON as binary data and cause an error
            params: opts
@@ -204,7 +227,7 @@ defmodule CouchDBEx.Worker do
       Enum.into(%{}) |> # Transform options into a map
       Map.put(:selector, selector) # Add the selector field
 
-    with {:ok, resp} <- HTTPoison.post(
+    with {:ok, resp} <- HTTPClient.post(
            "#{state[:hostname]}:#{state[:port]}/#{database}/_find",
            Poison.encode!(final_opts),
            [{"Content-Type", "application/json"}]
@@ -227,7 +250,7 @@ defmodule CouchDBEx.Worker do
       handle_call({:document_insert, final_id_rev, database}, from, state)
     else
       {id, rev} = id_rev
-      with {:ok, resp} <- HTTPoison.delete(
+      with {:ok, resp} <- HTTPClient.delete(
              "#{state[:hostname]}:#{state[:port]}/#{database}/#{id}",
              [{"Accept", "application/json"}],
              params: [rev: rev]
@@ -243,7 +266,7 @@ defmodule CouchDBEx.Worker do
   def handle_call(
     {:attachment_upload, database, id, {attachment_name, attachment_bindata}, rev, opts}, _from, state
   ) when is_binary(attachment_bindata) do
-    with {:ok, resp} <- HTTPoison.put(
+    with {:ok, resp} <- HTTPClient.put(
            "#{state[:hostname]}:#{state[:port]}/#{database}/#{id}/#{attachment_name}",
            attachment_bindata,
            if(Keyword.has_key?(opts, :content_type), do: [{"Content-Type", opts[:content_type]}], else: []),
@@ -285,7 +308,7 @@ defmodule CouchDBEx.Worker do
 
     final_opts = opts |> Enum.into(%{}) |> Map.put(:index, final_index)
 
-    with {:ok, resp} <- HTTPoison.post(
+    with {:ok, resp} <- HTTPClient.post(
            "#{state[:hostname]}:#{state[:port]}/#{database}/_index",
            Poison.encode!(final_opts),
            [{"Content-Type", "application/json"}]
@@ -297,7 +320,7 @@ defmodule CouchDBEx.Worker do
   end
 
   def handle_call({:index_delete, database, ddoc, index_name}, _from, state) do
-    with {:ok, resp} <- HTTPoison.delete(
+    with {:ok, resp} <- HTTPClient.delete(
            "#{state[:hostname]}:#{state[:port]}/#{database}/_index/#{ddoc}/json/#{index_name}"
          ),
          %{"ok" => true} <- resp.body |> Poison.decode!
@@ -307,7 +330,7 @@ defmodule CouchDBEx.Worker do
   end
 
   def handle_call({:index_list, database}, _from, state) do
-    with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/#{database}/_index"),
+    with {:ok, resp} <- HTTPClient.get("#{state[:hostname]}:#{state[:port]}/#{database}/_index"),
          %{"indexes" => indexes, "total_rows" => total} <- resp.body |> Poison.decode!
       do {:reply, {:ok, indexes, total}, state}
       else e -> {:reply, {:error, e}, state}
@@ -333,10 +356,11 @@ defmodule CouchDBEx.Worker do
       opts
     ) |> Enum.into(%{})
 
-    with {:ok, resp} <- HTTPoison.post(
+    with {:ok, resp} <- HTTPClient.post(
            "#{state[:hostname]}:#{state[:port]}/_replicate",
            Poison.encode!(final_opts),
-           [{"Content-Type", "application/json"}]
+           [{"Content-Type", "application/json"}],
+           recv_timeout: :infinity
          ),
          %{"ok" => true} = json_resp <- resp.body |> Poison.decode!
       do {:reply, {:ok, json_resp}, state}
@@ -355,7 +379,7 @@ defmodule CouchDBEx.Worker do
       <> (if not is_nil(section), do: "#{section}/", else: "")
       <> (if not is_nil(section) and not is_nil(key), do: "#{key}/", else: ""))
 
-    with {:ok, resp} <- HTTPoison.get(addr),
+    with {:ok, resp} <- HTTPClient.get(addr),
          json_resp <- resp.body |> Poison.decode!
       do {:reply, {:ok, json_resp}, state}
       else e -> {:reply, {:error, e}, state}
@@ -367,7 +391,7 @@ defmodule CouchDBEx.Worker do
       <> (if not is_nil(node_name), do: "_node/#{node_name}/", else: "")
       <> "_config/#{section}/#{key}")
 
-    with {:ok, resp} <- HTTPoison.put(addr, Poison.encode!(value)),
+    with {:ok, resp} <- HTTPClient.put(addr, Poison.encode!(value)),
          json_resp <- resp.body |> Poison.decode!
       do {:reply, {:ok, json_resp}, state}
       else e -> {:reply, {:error, e}, state}
@@ -393,7 +417,7 @@ defmodule CouchDBEx.Worker do
   ## Helpers
 
   defp uuid_get_impl(count, state) do
-    with {:ok, resp} <- HTTPoison.get("#{state[:hostname]}:#{state[:port]}/_uuids", [], params: [count: count]),
+    with {:ok, resp} <- HTTPClient.get("#{state[:hostname]}:#{state[:port]}/_uuids", [], params: [count: count]),
          %{"uuids" => uuids} <- resp.body |> Poison.decode!
       do {:ok, uuids}
       else e -> {:error, e}
