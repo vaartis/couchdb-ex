@@ -7,7 +7,7 @@ services:
 
 before_script:
   - docker pull couchdb:2
-  - docker run -p 5984:5984 --detach --name couchdb couchdb:2
+  - docker run -p 5984:5984 -e COUCHDB_USER=couchdb -e COUCHDB_PASSWORD=couchdb --detach --name couchdb couchdb:2
 
 elixir:
   - 1.6.4
