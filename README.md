@@ -1,5 +1,7 @@
 # CouchDBEx
 
+[![Build Status](https://www.travis-ci.org/vaartis/couchdb-ex.svg?branch=master)](https://www.travis-ci.org/vaartis/couchdb-ex)
+
 This is supposed to be the *good* couchdb interface for elixir,
 documented, tested and other things, but that's in progress for now, i know
 there are erlang and elixir clients already, but they are basically dead and not
