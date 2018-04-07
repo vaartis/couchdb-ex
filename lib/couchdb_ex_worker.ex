@@ -159,10 +159,16 @@ defmodule CouchDBEx.Worker do
   end
 
   def handle_call({:document_list, database, opts}, _from, state) do
+    maybe_keys = opts[:keys]
+
+    # Pass an empty json object, because CouchDB will error if it sees an empty string here
+    maybe_body = unless(is_nil(maybe_keys), do: %{keys: maybe_keys} |> Poison.encode!, else: "{}")
+
     with {:ok, resp} <- HTTPoison.post(
            "#{state[:hostname]}:#{state[:port]}/#{database}/_all_docs",
-           Enum.into(opts, %{}) |> Poison.encode!,
-           [{"Content-Type", "application/json"}]
+           maybe_body,
+           [{"Content-Type", "application/json"}],
+           params: opts |> Keyword.delete(:keys) |> Enum.into(%{})
          ),
          json_resp <- resp.body |> Poison.decode! do
       if not Map.has_key?(json_resp, "error") do
