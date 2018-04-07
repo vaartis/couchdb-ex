@@ -1,0 +1,15 @@
+language: elixir
+
+sudo: required
+
+services:
+  - docker
+
+before_script:
+  - docker pull couchdb:2
+  - docker run -p 5984:5984 --detach --name couchdb couchdb:2
+
+elixir:
+  - 1.6.4
+
+opt_release: 20
