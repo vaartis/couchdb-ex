@@ -129,7 +129,9 @@ defmodule CouchDBEx.Worker do
 
 
   @impl true
-  def handle_call({:document_insert, document_or_documents, database}, _from, state) do
+  def handle_call(
+    {:document_insert, document_or_documents, database}, _from, state
+  ) when is_map(document_or_documents) or is_list(document_or_documents) do
     # A bulk insert
     if is_list(document_or_documents) do
       documents = document_or_documents
@@ -197,7 +199,7 @@ defmodule CouchDBEx.Worker do
     end
   end
 
-  def handle_call({:document_find, selector, database, opts}, _from, state) do
+  def handle_call({:document_find, selector, database, opts}, _from, state) when is_map(selector) do
     final_opts = opts |>
       Enum.into(%{}) |> # Transform options into a map
       Map.put(:selector, selector) # Add the selector field
@@ -216,7 +218,9 @@ defmodule CouchDBEx.Worker do
   @doc """
   Either {id,rev} or [{id,rev}]
   """
-  def handle_call({:document_delete, id_rev, database}, from, state) do
+  def handle_call(
+    {:document_delete, id_rev, database}, from, state
+  ) when is_tuple(id_rev) or is_list(id_rev) do
     if is_list(id_rev) do
       final_id_rev = Enum.map(id_rev, fn {id,rev} -> %{:_id => id, :_rev => rev, :_deleted => true} end)
 
@@ -270,7 +274,9 @@ defmodule CouchDBEx.Worker do
              a partial index
 
   """
-  def handle_call({:index_create, index, database, opts}, _from, state) do
+  def handle_call(
+    {:index_create, index, database, opts}, _from, state
+  ) when is_map(index) or is_list(index) do
     final_index = if is_list(index) do
       %{fields: index} # Is index is a list, consider it a list of indexing fields
     else
