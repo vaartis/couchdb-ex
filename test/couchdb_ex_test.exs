@@ -28,7 +28,7 @@ defmodule CouchDBExTest do
   end
 
   describe "db_exists?" do
-    test "exists" do
+    test "actually exists" do
       {:ok, res} = CouchDBEx.db_exists?("couchdb-ex-test")
 
       assert res
@@ -43,11 +43,11 @@ defmodule CouchDBExTest do
     end
   end
 
-  test "db_info" do
+  test "db_info shows has the correct db name" do
     assert match?({:ok, %{"db_name" => "couchdb-ex-test"}}, CouchDBEx.db_info("couchdb-ex-test"))
   end
 
-  test "db_create" do
+  test "db_create can create a database" do
     :ok = CouchDBEx.db_create("couchdb-ex-test-2")
 
     on_exit fn ->
@@ -57,7 +57,7 @@ defmodule CouchDBExTest do
     assert match?({:ok, true}, CouchDBEx.db_exists?("couchdb-ex-test-2"))
   end
 
-  test "db_list" do
+  test "db_list has a database in it" do
     {:ok, list} = CouchDBEx.db_list()
 
     assert "couchdb-ex-test" in list
@@ -73,7 +73,7 @@ defmodule CouchDBExTest do
     assert match?({:ok, %{"test_value" => 1}}, CouchDBEx.document_get(id, "couchdb-ex-test"))
   end
 
-  test "document_insert_many+document_list" do
+  test "inserting many documents and retrieving them" do
     seed = ExUnit.configuration[:seed]
 
     {:ok, _} =
@@ -92,7 +92,7 @@ defmodule CouchDBExTest do
     end)
   end
 
-  test "document_delete_one" do
+  test "deleting a document" do
     {:ok, [id: docid, rev: docrev]} = CouchDBEx.document_insert_one(%{test_value: 1}, "couchdb-ex-test")
 
     assert match?({:ok, _}, CouchDBEx.document_get(docid, "couchdb-ex-test"))
@@ -102,7 +102,7 @@ defmodule CouchDBExTest do
     assert match?({:error, _}, CouchDBEx.document_get(docid, "couchdb-ex-test"))
   end
 
-  test "document_delete_many" do
+  test "deleting many documents" do
     seed = ExUnit.configuration[:seed]
 
     {:ok, inserted_docs} =
