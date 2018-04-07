@@ -1,6 +1,7 @@
 # CouchDBEx
 
 [![Build Status](https://www.travis-ci.org/vaartis/couchdb-ex.svg?branch=master)](https://www.travis-ci.org/vaartis/couchdb-ex)
+[![Coverage Status](https://coveralls.io/repos/github/vaartis/couchdb-ex/badge.svg?branch=master)](https://coveralls.io/github/vaartis/couchdb-ex?branch=master)
 
 This is supposed to be the *good* couchdb interface for elixir,
 documented, tested and other things, but that's in progress for now, i know
