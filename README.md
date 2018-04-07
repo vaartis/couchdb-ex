@@ -16,7 +16,7 @@ First, add the couchdb worker to your supervisor
 
     opts = [strategy: :one_for_one, name: Application.Supervisor]
     Supervisor.start_link(children, opts)
-``'
+```
 
 Then, you use functions from `CouchDBEx`
 
