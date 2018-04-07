@@ -5,19 +5,31 @@ documented, tested and other things, but that's in progress for now, i know
 there are erlang and elixir clients already, but they are basically dead and not
 documented very good if at all, so i'm writing this one.
 
-## Installation
+## Usage example
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `couchdb_ex` to your list of dependencies in `mix.exs`:
+First, add the couchdb worker to your supervisor
 
 ```elixir
-def deps do
-  [
-    {:couchdb_ex, "~> 0.1.0"}
-  ]
-end
+    children = [
+      {CouchDBEx.Worker, [hostname: "http://couchdb:couchdb@localhost"]}
+    ]
+
+    opts = [strategy: :one_for_one, name: Application.Supervisor]
+    Supervisor.start_link(children, opts)
+``'
+
+Then, you use functions from `CouchDBEx`
+
+```elixir
+:ok = CouchDBEx.db_create("couchdb-ex-test")
+
+{:ok, doc} = CouchDBEx.document_insert_one("couchdb-ex-test", %{test_value: 1})
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/couchdb_ex](https://hexdocs.pm/couchdb_ex).
+This library also includes subscribing to database changes with `CouchDBEx.changes_sub` and `_ubsub`,
+see respective functions documentation for more (not yet online...)
+
+## Contribution
+
+Please do open issues and pull requests if you feel like something
+is wrong, this library probably doesn't have everything you need yet.
