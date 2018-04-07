@@ -91,4 +91,15 @@ defmodule CouchDBExTest do
       assert e["doc"]["test_value"] == seed + ind
     end)
   end
+
+  test "document_delete_one" do
+    {:ok, [id: docid, rev: docrev]} = CouchDBEx.document_insert_one("couchdb-ex-test", %{test_value: 1})
+
+    assert match?({:ok, _}, CouchDBEx.document_get("couchdb-ex-test", docid))
+
+    assert match?({:ok, %{"ok" => true}}, CouchDBEx.document_delete_one("couchdb-ex-test", docid, docrev))
+
+    assert match?({:error, _}, CouchDBEx.document_get("couchdb-ex-test", docid))
+  end
+
 end
