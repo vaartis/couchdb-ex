@@ -368,28 +368,6 @@ defmodule CouchDBEx.Worker do
     end
   end
 
-
-  @doc """
-  Subscribe to changes to the table.
-
-  `watcher_name` is the process name the caller wants the watcher to be known as,
-  the watcher may set this name on start (it will be passed as `:name` in the options
-  list) so that other processes could communicate with it, otherwise it is used only as a `Supervisor` id.
-  This facilitates module reuse, as one might want to use same modules on different
-  tables. `modname` is the actual module that will be passed to the supervisor, which
-  in turn will start it.
-
-  ## Options
-
-  Options are as described in
-  [the official documentation](http://docs.couchdb.org/en/2.1.1/api/database/changes.html),
-  except the following defaults:
-  * `feed` is `continuous`, this is the only mode supported, trying to change it **WILL RAISE A RuntimeError**
-  * `include_docs` is `true`
-  * `since` is `now`
-  * `heartbeat` is `25`, this is needed to keep the connection alive,
-                trying to change it **WILL RAISE a RuntimeError**
-  """
   @impl true
   def handle_cast({:changes_sub, database, modname, watcher_name, opts}, state) do
     GenServer.cast(
