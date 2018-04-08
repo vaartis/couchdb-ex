@@ -2,6 +2,8 @@
 
 [![Build Status](https://www.travis-ci.org/vaartis/couchdb-ex.svg?branch=master)](https://www.travis-ci.org/vaartis/couchdb-ex)
 [![Coverage Status](https://coveralls.io/repos/github/vaartis/couchdb-ex/badge.svg?branch=master)](https://coveralls.io/github/vaartis/couchdb-ex?branch=master)
+[![Hex.pm](https://img.shields.io/hexpm/v/couchdb_ex.svg)](https://hex.pm/packages/couchdb_ex)
+
 
 This is supposed to be the *good* couchdb interface for elixir,
 documented, tested and other things, but that's in progress for now, i know
@@ -19,6 +21,7 @@ Some features implemented:
 - Index creation/deletion/listing
 - Replication
 
+Documentation can be found [here](https://hexdocs.pm/couchdb_ex)
 
 ## Usage example
 
@@ -46,7 +49,7 @@ Then, you use functions from `CouchDBEx`
 ```
 
 This library also includes subscribing to database changes with `CouchDBEx.changes_sub` and `_ubsub`,
-see respective functions documentation for more (not yet online...)
+see respective functions documentation for more
 
 ## Contribution
 
