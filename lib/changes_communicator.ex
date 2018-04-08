@@ -3,6 +3,8 @@ defmodule CouchDBEx.Worker.ChangesCommunicator do
 
   require Logger
 
+  @moduledoc false
+
   # Client
 
   def start_link(args) do

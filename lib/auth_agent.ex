@@ -1,6 +1,8 @@
 defmodule CouchDBEx.Worker.AuthServer do
   use GenServer
 
+  @moduledoc false
+
   ## Client
 
   def start_link(args) do

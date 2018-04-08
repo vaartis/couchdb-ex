@@ -1,5 +1,48 @@
 defmodule CouchDBEx do
 
+  @moduledoc """
+  Main entrypoint to the `CouchDBEx` API.
+
+  ## Authentification
+
+  This module supports both basic and cookie authentification
+  with automatic cookie renewal.
+
+  To use authentification, you'll need to pass the `username` and `password`
+  parameters at the module start and set `auth_method` to either
+  `:cookie` or `:basic`, you also can just not provide any of those, then there
+  will not be any authentification going on.
+
+  Basic authentifcation will pass the `Authrorization` header with every request you make,
+  this header will contain base64 encoded login and password, be aware that is is **insecure**.
+
+  The other method is more secure: when the worker starts, it will initiate a session with
+  the database and use the cookie it provides until the `:cookie_session_minutes`
+  timout (9 minutes by default, since CouchDB sessions time out in 10 minutes with the
+  default database configuration). When the cookie times out, it will be renewed automatically
+  by the internal auth agent; you probably want to set this option one minute less
+  than the actual database configuration just to be safe.
+
+  You can read more about authentification [here](http://docs.couchdb.org/en/latest/api/server/authn.html)
+
+  ## Examples
+
+  Example module specification for the supervisor:
+
+      children = [
+          {CouchDBEx.Worker, [
+              hostname: "http://localhost",
+              username: "couchdb",
+              password: "couchdb",
+              auth_method: :cookie,
+              cookie_session_minutes: 9
+            ]}
+        ]
+
+      opts = [strategy: :one_for_one, name: CouchDBEx.Test.Supervisor]
+      Supervisor.start_link(children, opts)
+  """
+
   @type couchdb_res :: {:ok, map} | {:error, term}
 
   @doc """

@@ -3,14 +3,16 @@ defmodule CouchDBEx.Worker do
 
   alias CouchDBEx.HTTPClient
 
-  @moduledoc """
-  ## TODO:
+  @moduledoc false
 
-  - [ ] `_stats`
-  - [ ] `_scheduler`
-  - [ ] `_session` - cookie session
-  - [ ] `_explain`
-  """
+
+  ## TODO:
+  #
+  # - [ ] `_stats`
+  # - [ ] `_scheduler`
+  # - [ ] `_session` - cookie session
+  # - [ ] `_explain`
+
 
   # Client
 

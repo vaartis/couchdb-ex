@@ -1,6 +1,8 @@
 defmodule CouchDBEx.HTTPClient do
   use HTTPoison.Base
 
+  @moduledoc false
+
   alias CouchDBEx.Worker.AuthServer
 
   def process_request_options(options) do
