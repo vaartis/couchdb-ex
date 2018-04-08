@@ -6,6 +6,7 @@ defmodule CouchDBEx.MixProject do
       app: :couchdb_ex,
       version: "0.1.1",
       elixir: "~> 1.6",
+      package: package(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
@@ -35,4 +36,16 @@ defmodule CouchDBEx.MixProject do
       {:excoveralls, "~> 0.8", only: :test, runtime: false}
     ]
   end
+
+  defp package do
+    [
+      description: "A supposed-to-be-good CouchDB interface for elixir",
+      maintainers: ["vaartis"],
+      licenses: ["BSD-2-Clause"],
+      links: %{
+        "GitHub" => "https://github.com/vaartis/couchdb-ex"
+      }
+    ]
+  end
+
 end
