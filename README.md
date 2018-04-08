@@ -5,10 +5,11 @@
 [![Hex.pm](https://img.shields.io/hexpm/v/couchdb_ex.svg)](https://hex.pm/packages/couchdb_ex)
 
 
-This is supposed to be the *good* couchdb interface for elixir,
-documented, tested and other things, but that's in progress for now, i know
+This is supposed to be a *good* couchdb interface for elixir,
+documented, tested and other things, that's in progress for now, i know
 there are erlang and elixir clients already, but they are basically dead and not
-documented very good if at all, so i'm writing this one.
+documented very good if at all, although you might also want to
+look at [icouch](https://hex.pm/packages/icouch)
 
 Some features implemented:
 
