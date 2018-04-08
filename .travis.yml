@@ -16,3 +16,6 @@ elixir:
   - 1.6.4
 
 opt_release: 20
+
+notifications:
+  email: false
