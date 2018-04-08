@@ -8,6 +8,18 @@ documented, tested and other things, but that's in progress for now, i know
 there are erlang and elixir clients already, but they are basically dead and not
 documented very good if at all, so i'm writing this one.
 
+Some features implemented:
+
+- Single and mass document insertion/deletion/update
+- Subscribing to changes in the database
+- Basic and cookie authentification
+- Database configuration retreival and setting
+- Document finding
+- Attachment uploading (no deleting yet)
+- Index creation/deletion/listing
+- Replication
+
+
 ## Usage example
 
 First, add the couchdb worker to your supervisor
