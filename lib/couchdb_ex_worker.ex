@@ -22,8 +22,6 @@ defmodule CouchDBEx.Worker do
 
   @impl true
   def init(args) do
-    alias __MODULE__.AuthAgent
-
     # Some default options..
     args = Keyword.merge(
       [
@@ -34,28 +32,21 @@ defmodule CouchDBEx.Worker do
     )
 
     children = [
-      {__MODULE__.ChangesCommunicator, args},
-      %{
-        id: AuthAgent,
-        start: {Agent, :start_link, [fn -> %{} end, [name: AuthAgent]]}
-      }
+      {__MODULE__.AuthServer, args}
     ]
 
+    # Other modules have no buisness with auth data, better remove it
+    args = args
+    |> Keyword.delete(:auth_method)
+    |> Keyword.delete(:username)
+    |> Keyword.delete(:password)
+    |> Keyword.delete(:cookie_session_minutes)
+
+    # Add the changes communicator server now, it will not have any auth data,
+    # just like the main worker
+    children = [{__MODULE__.ChangesCommunicator, args} | children]
+
     Supervisor.start_link(children, strategy: :one_for_one, name: CouchDBEx.Worker.Supervisor)
-
-    # If options contain basic auth data, pass it to the auth agent and remove
-    # those options
-    args = if Keyword.has_key?(args, :basic_auth_username) and Keyword.has_key?(args, :basic_auth_password) do
-      Agent.update(AuthAgent, fn st ->
-        Map.put(st, :basic_auth, Base.encode64("#{args[:basic_auth_username]}:#{args[:basic_auth_password]}"))
-      end)
-
-      args
-      |> Keyword.delete(:basic_auth_username)
-      |> Keyword.delete(:basic_auth_password)
-    else
-      args
-    end
 
     {:ok, args}
   end

@@ -6,8 +6,9 @@ defmodule CouchDBExTest do
     children = [
       {CouchDBEx.Worker, [
           hostname: "http://localhost",
-          basic_auth_username: "couchdb",
-          basic_auth_password: "couchdb"
+          username: "couchdb",
+          password: "couchdb",
+          auth_method: :cookie
         ]}
     ]
 
