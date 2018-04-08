@@ -180,7 +180,7 @@ defmodule CouchDBEx.Worker do
     maybe_keys = opts[:keys]
 
     # Pass an empty json object, because CouchDB will error if it sees an empty string here
-    maybe_body = unless(is_nil(maybe_keys), do: %{keys: maybe_keys} |> Poison.encode!, else: "{}")
+    maybe_body = if(is_nil(maybe_keys), do: "{}", else: %{keys: maybe_keys} |> Poison.encode!)
 
     with {:ok, resp} <- HTTPClient.post(
            "#{state[:hostname]}:#{state[:port]}/#{database}/_all_docs",
@@ -226,8 +226,8 @@ defmodule CouchDBEx.Worker do
            [{"Content-Type", "application/json"}]
          ),
          %{"docs" => _docs} = json_res <- resp.body |> Poison.decode!
-    do {:reply, {:ok ,json_res}, state}
-    else e-> {:reply, {:error, e}, state}
+    do {:reply, {:ok, json_res}, state}
+    else e -> {:reply, {:error, e}, state}
     end
   end
 
@@ -238,7 +238,7 @@ defmodule CouchDBEx.Worker do
     {:document_delete, id_rev, database}, from, state
   ) when is_tuple(id_rev) or is_list(id_rev) do
     if is_list(id_rev) do
-      final_id_rev = Enum.map(id_rev, fn {id,rev} -> %{:_id => id, :_rev => rev, :_deleted => true} end)
+      final_id_rev = Enum.map(id_rev, fn {id, rev} -> %{:_id => id, :_rev => rev, :_deleted => true} end)
 
       handle_call({:document_insert, final_id_rev, database}, from, state)
     else
@@ -249,8 +249,8 @@ defmodule CouchDBEx.Worker do
              params: [rev: rev]
            ),
            %{"ok" => _ok} = json_res <- resp.body |> Poison.decode!
-        do {:reply, {:ok ,json_res}, state}
-        else e-> {:reply, {:error, e}, state}
+        do {:reply, {:ok, json_res}, state}
+        else e -> {:reply, {:error, e}, state}
       end
     end
   end

@@ -26,7 +26,9 @@ defmodule CouchDBEx.Worker.AuthServer do
   @impl true
   def init(state) do
     unless is_nil(state[:auth_method]) do
-      unless is_nil(state[:username]) or is_nil(state[:password]) do
+      if is_nil(state[:username]) or is_nil(state[:password]) do
+        {:error, :name_or_password_nil}
+      else
         case state[:auth_method] do
           :basic ->
             {
@@ -51,8 +53,6 @@ defmodule CouchDBEx.Worker.AuthServer do
 
           _ -> {:error, :unknown_auth_method}
         end
-      else
-        {:error, :name_or_password_nil}
       end
     end
   end

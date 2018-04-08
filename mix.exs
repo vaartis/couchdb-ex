@@ -32,6 +32,7 @@ defmodule CouchDBEx.MixProject do
 
       {:dialyxir, "~> 0.5", only: :dev, runtime: false},
       {:ex_doc, "~> 0.16", only: :dev, runtime: false},
+      {:credo, "~> 0.3", only: :dev},
 
       {:excoveralls, "~> 0.8", only: :test, runtime: false}
     ]

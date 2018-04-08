@@ -81,8 +81,8 @@ defmodule CouchDBExTest do
   test "inserting many documents and retrieving them" do
     seed = ExUnit.configuration[:seed]
 
-    {:ok, _} =
-      Enum.map(seed..seed + 99, &(%{test_value: &1}))
+    {:ok, _} = seed..seed + 99
+      |> Enum.map(&(%{test_value: &1}))
       |> CouchDBEx.document_insert_many("couchdb-ex-test")
 
     {:ok, %{"rows" => got_docs, "total_rows" => total_count}} =
@@ -110,8 +110,8 @@ defmodule CouchDBExTest do
   test "deleting many documents" do
     seed = ExUnit.configuration[:seed]
 
-    {:ok, inserted_docs} =
-      Enum.map(seed..seed + 99, &(%{test_value: &1}))
+    {:ok, inserted_docs} = seed..seed + 99
+      |> Enum.map(&(%{test_value: &1}))
       |> CouchDBEx.document_insert_many("couchdb-ex-test")
 
     {:ok, deleted_info} =
