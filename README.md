@@ -18,7 +18,7 @@ Some features implemented:
 - Basic and cookie authentification
 - Database configuration retreival and setting
 - Document finding
-- Attachment uploading and retreival
+- Attachment uploading/retreival/deletion
 - Index creation/deletion/listing
 - Replication
 
