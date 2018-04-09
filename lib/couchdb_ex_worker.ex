@@ -10,7 +10,6 @@ defmodule CouchDBEx.Worker do
   #
   # - [ ] `_stats`
   # - [ ] `_scheduler`
-  # - [ ] `_session` - cookie session
   # - [ ] `_explain`
 
 
