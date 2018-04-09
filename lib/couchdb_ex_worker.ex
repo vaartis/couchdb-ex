@@ -258,7 +258,7 @@ defmodule CouchDBEx.Worker do
 
   @impl true
   def handle_call(
-    {:attachment_upload, database, id, {attachment_name, attachment_bindata}, rev, opts}, _from, state
+    {:attachment_upload, database, id, rev, {attachment_name, attachment_bindata}, opts}, _from, state
   ) when is_binary(attachment_bindata) do
     with {:ok, resp} <- HTTPClient.put(
            "#{state[:hostname]}:#{state[:port]}/#{database}/#{id}/#{attachment_name}",

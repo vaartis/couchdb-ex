@@ -205,10 +205,10 @@ defmodule CouchDBEx do
                      this option will set the `Content-Type` header for the request.
   """
   @spec attachment_upload(
-    db :: String.t, id :: String.t, name :: String.t, bindata :: binary, doc_rev :: String.t, opts :: keyword
+    db :: String.t, id :: String.t, doc_rev :: String.t, name :: String.t, bindata :: binary, opts :: keyword
   ) :: {:ok, [id: String.t, rev: String.t]} | {:error, term}
-  def attachment_upload(db, id, name, bindata, doc_rev, opts \\ []) do
-    GenServer.call(CouchDBEx.Worker, {:attachment_upload, db, id, {name, bindata}, doc_rev, opts})
+  def attachment_upload(db, id, doc_rev, name, bindata, opts \\ []) do
+    GenServer.call(CouchDBEx.Worker, {:attachment_upload, db, id, doc_rev, {name, bindata}, opts})
   end
 
 
