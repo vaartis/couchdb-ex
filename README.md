@@ -34,7 +34,7 @@ First, add the couchdb worker to your supervisor
           hostname: "http://localhost",
           username: "couchdb",
           password: "couchdb",
-          auth_method: :basic
+          auth_method: :cookie # or :basic, if you feel like it
         ]}
     ]
 
