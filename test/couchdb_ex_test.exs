@@ -69,9 +69,7 @@ defmodule CouchDBExTest do
   end
 
   test "document_insert_one" do
-    {:ok, doc} = CouchDBEx.document_insert_one(%{test_value: 1}, "couchdb-ex-test")
-
-    id = doc[:id]
+    {:ok, %{"id" => id}} = CouchDBEx.document_insert_one(%{test_value: 1}, "couchdb-ex-test")
 
     refute is_nil(id)
 
@@ -98,7 +96,7 @@ defmodule CouchDBExTest do
   end
 
   test "deleting a document" do
-    {:ok, [id: docid, rev: docrev]} = CouchDBEx.document_insert_one(%{test_value: 1}, "couchdb-ex-test")
+    {:ok, %{"id" => docid, "rev" => docrev}} = CouchDBEx.document_insert_one(%{test_value: 1}, "couchdb-ex-test")
 
     assert match?({:ok, _}, CouchDBEx.document_get(docid, "couchdb-ex-test"))
 

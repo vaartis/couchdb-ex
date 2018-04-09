@@ -169,8 +169,8 @@ defmodule CouchDBEx.Worker do
              Poison.encode!(document),
              [{"Content-Type", "application/json"}]
            ),
-           %{"ok" => true, "id" => id, "rev" => rev} <- resp.body |> Poison.decode!
-        do {:reply, {:ok, [id: id, rev: rev]}, state}
+           %{"ok" => true} = rp <- resp.body |> Poison.decode!
+        do {:reply, {:ok, rp}, state}
         else e -> {:reply, {:error, e}, state}
       end
     end
@@ -254,6 +254,7 @@ defmodule CouchDBEx.Worker do
       end
     end
   end
+
 
   @impl true
   def handle_call(
