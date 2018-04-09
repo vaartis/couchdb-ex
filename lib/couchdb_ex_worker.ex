@@ -64,7 +64,7 @@ defmodule CouchDBEx.Worker do
         state
       }
       else
-        e -> {:reply, {:error, e}, state}
+        e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -72,7 +72,7 @@ defmodule CouchDBEx.Worker do
   def handle_call({:db_exists?, db_name}, _from, state) do
     with {:ok, resp} <- HTTPClient.head("#{state[:hostname]}:#{state[:port]}/#{db_name}")
       do {:reply, {:ok, resp.status_code == 200}, state}
-      else e -> {:reply, {:error, e}, state}
+      else e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -80,7 +80,7 @@ defmodule CouchDBEx.Worker do
     with {:ok, resp} <- HTTPClient.get("#{state[:hostname]}:#{state[:port]}/#{db_name}"),
          json_resp <- resp.body |> Poison.decode!
       do {:reply, {:ok, json_resp}, state}
-      else e -> {:reply, {:error, e}, state}
+      else e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -97,7 +97,7 @@ defmodule CouchDBEx.Worker do
          ),
          %{"ok" => true} <- resp.body |> Poison.decode!
       do {:reply, :ok, state}
-      else e -> {:reply, {:error, e}, state}
+      else e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -107,7 +107,7 @@ defmodule CouchDBEx.Worker do
          %{"ok" => true} <- resp.body |> Poison.decode!
       do {:reply, :ok, state}
       else
-        e -> {:reply, {:error, e}, state}
+        e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -120,7 +120,7 @@ defmodule CouchDBEx.Worker do
          %{"ok" => true} <- resp.body |> Poison.decode!
       do {:reply, :ok, state}
       else
-        e -> {:reply, {:error, e}, state}
+        e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -128,7 +128,7 @@ defmodule CouchDBEx.Worker do
     with {:ok, resp} <- HTTPClient.get("#{state[:hostname]}:#{state[:port]}/_all_dbs"),
          json_resp <- resp.body |> Poison.decode!
       do {:reply, {:ok, json_resp}, state}
-      else e -> {:reply, {:error, e}, state}
+      else e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -159,7 +159,7 @@ defmodule CouchDBEx.Worker do
            ),
            docs <- resp.body |> Poison.decode!
         do {:reply, {:ok, docs}, state}
-        else e -> {:reply, {:error, e}, state}
+        else e -> {:reply, transform_error(e), state}
       end
     else
       document = document_or_documents
@@ -171,7 +171,7 @@ defmodule CouchDBEx.Worker do
            ),
            %{"ok" => true} = rp <- resp.body |> Poison.decode!
         do {:reply, {:ok, rp}, state}
-        else e -> {:reply, {:error, e}, state}
+        else e -> {:reply, transform_error(e), state}
       end
     end
   end
@@ -192,7 +192,7 @@ defmodule CouchDBEx.Worker do
       if not Map.has_key?(json_resp, "error") do
         {:reply, {:ok, json_resp}, state}
       else
-        {:reply, {:error, json_resp}, state}
+        {:reply, transform_error(json_resp), state}
       end
     else e -> {:reply, e, state}
     end
@@ -209,7 +209,7 @@ defmodule CouchDBEx.Worker do
       if not Map.has_key?(json_resp, "error") do
         {:reply, {:ok, json_resp}, state}
       else
-        {:reply, {:error, json_resp}, state}
+        {:reply, transform_error(json_resp), state}
       end
     else e -> {:reply, e, state}
     end
@@ -227,7 +227,7 @@ defmodule CouchDBEx.Worker do
          ),
          %{"docs" => _docs} = json_res <- resp.body |> Poison.decode!
     do {:reply, {:ok, json_res}, state}
-    else e -> {:reply, {:error, e}, state}
+    else e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -250,7 +250,7 @@ defmodule CouchDBEx.Worker do
            ),
            %{"ok" => _ok} = json_res <- resp.body |> Poison.decode!
         do {:reply, {:ok, json_res}, state}
-        else e -> {:reply, {:error, e}, state}
+        else e -> {:reply, transform_error(e), state}
       end
     end
   end
@@ -283,7 +283,10 @@ defmodule CouchDBEx.Worker do
       {_, content_type} = Enum.find(resp.headers, fn {h, _} -> h == "Content-Type" end)
       {:reply, {:ok, resp.body,content_type}, state}
     else
-      e -> {:reply, {:error, e}, state}
+      %HTTPoison.Response{body: einfo} ->
+        {:reply, transform_error(einfo |> Poison.decode!), state}
+      e ->
+        {:reply, transform_error(e)}
     end
   end
 
@@ -307,7 +310,7 @@ defmodule CouchDBEx.Worker do
          ),
          %{"result" => "created"} = json_res <- resp.body |> Poison.decode!
       do {:reply, {:ok, json_res}, state}
-      else e -> {:reply, {:error, e}, state}
+      else e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -318,7 +321,7 @@ defmodule CouchDBEx.Worker do
          ),
          %{"ok" => true} <- resp.body |> Poison.decode!
       do {:reply, :ok, state}
-      else e -> {:reply, {:error, e}, state}
+      else e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -327,7 +330,7 @@ defmodule CouchDBEx.Worker do
     with {:ok, resp} <- HTTPClient.get("#{state[:hostname]}:#{state[:port]}/#{database}/_index"),
          %{"indexes" => indexes, "total_rows" => total} <- resp.body |> Poison.decode!
       do {:reply, {:ok, indexes, total}, state}
-      else e -> {:reply, {:error, e}, state}
+      else e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -358,7 +361,7 @@ defmodule CouchDBEx.Worker do
          ),
          %{"ok" => true} = json_resp <- resp.body |> Poison.decode!
       do {:reply, {:ok, json_resp}, state}
-      else e -> {:reply, {:error, e}, state}
+      else e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -376,7 +379,7 @@ defmodule CouchDBEx.Worker do
     with {:ok, resp} <- HTTPClient.get(addr),
          json_resp <- resp.body |> Poison.decode!
       do {:reply, {:ok, json_resp}, state}
-      else e -> {:reply, {:error, e}, state}
+      else e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -388,7 +391,7 @@ defmodule CouchDBEx.Worker do
     with {:ok, resp} <- HTTPClient.put(addr, Poison.encode!(value)),
          json_resp <- resp.body |> Poison.decode!
       do {:reply, {:ok, json_resp}, state}
-      else e -> {:reply, {:error, e}, state}
+      else e -> {:reply, transform_error(e), state}
     end
   end
 
@@ -414,8 +417,16 @@ defmodule CouchDBEx.Worker do
     with {:ok, resp} <- HTTPClient.get("#{state[:hostname]}:#{state[:port]}/_uuids", [], params: [count: count]),
          %{"uuids" => uuids} <- resp.body |> Poison.decode!
       do {:ok, uuids}
-      else e -> {:error, e}
+      else e -> transform_error(e)
     end
+  end
+
+  defp transform_error(%{"error" => error, "reason" => reason}) do
+    {:error, %CouchDBEx.Error{error: error, reason: reason}}
+  end
+
+  defp transform_error(e) do
+    {:error, e}
   end
 
 end

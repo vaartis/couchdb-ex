@@ -43,7 +43,7 @@ defmodule CouchDBEx do
       Supervisor.start_link(children, opts)
   """
 
-  @type couchdb_res :: {:ok, map} | {:error, term}
+  @type couchdb_res :: {:ok, map} | {:error, %CouchDBEx.Error{} | term}
 
   @doc """
   Queries the CouchDB server for some general information
