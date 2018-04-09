@@ -120,7 +120,7 @@ defmodule CouchDBExTest do
     Enum.each(deleted_info, fn e -> assert match?(%{"ok" => true}, e) end)
   end
 
-  test "upload and get an attachment" do
+  test "upload, get and delete an attachment" do
     {:ok, %{"id" => id, "rev" => rev}} = CouchDBEx.document_insert_one(%{}, "couchdb-ex-test")
 
     seed = ExUnit.configuration[:seed]
@@ -142,6 +142,14 @@ defmodule CouchDBExTest do
         ^seed_str,
         "image/jpeg"
       },
+      CouchDBEx.attachment_get("couchdb-ex-test", id, rev, "test-attachment-#{seed}")
+    )
+
+    {:ok, %{"ok" => true, "rev" => rev}} =
+      CouchDBEx.attachment_delete("couchdb-ex-test", id, rev, "test-attachment-#{seed}")
+
+    assert match?(
+      {:error, %CouchDBEx.Error{error: "not_found"}},
       CouchDBEx.attachment_get("couchdb-ex-test", id, rev, "test-attachment-#{seed}")
     )
   end

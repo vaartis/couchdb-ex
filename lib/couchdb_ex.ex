@@ -199,6 +199,8 @@ defmodule CouchDBEx do
   attacument's name, `bindata` is binary data which will be uploaded (essentialy, anything that
   satisfies the `is_binary/1` constraint), `doc_rev` is current document revision.
 
+  This function returns new document revision, as well as the document id.
+
   ## Options
 
   * `content_type` - content type of the attachment in the standard format (e.g. `text/plain`),
@@ -223,6 +225,18 @@ defmodule CouchDBEx do
   ) :: {:ok, binary, String.t} | {:error, term}
   def attachment_get(db, id, doc_rev, name) do
     GenServer.call(CouchDBEx.Worker, {:attachment_get, db, id, doc_rev, name})
+  end
+
+  @doc """
+  Delete an attachment from the document.
+
+  This function returns new document revision, as well as it's id.
+  """
+  @spec attachment_delete(
+    db :: String.t, id :: String.t, name :: String.t, rev :: String.t
+  ) :: couchdb_res
+  def attachment_delete(db, id, doc_rev, name) do
+    GenServer.call(CouchDBEx.Worker, {:attachment_delete, db, id, doc_rev, name})
   end
 
 

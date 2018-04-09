@@ -290,6 +290,21 @@ defmodule CouchDBEx.Worker do
     end
   end
 
+  @impl true
+  def handle_call(
+    {:attachment_delete, database, id, rev, attachment_name}, _from, state
+  ) do
+    with {:ok, resp} <- HTTPClient.delete(
+           "#{state[:hostname]}:#{state[:port]}/#{database}/#{id}/#{attachment_name}",
+           [],
+           params: [rev: rev]
+         ),
+         json_resp <- resp.body |> Poison.decode!,
+         %{"ok" => true} = rp <- json_resp
+      do {:reply, {:ok, rp}, state}
+      else e -> {:reply, e, state}
+    end
+  end
 
   @impl true
   def handle_call(
