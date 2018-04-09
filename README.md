@@ -47,7 +47,7 @@ Then, you use functions from `CouchDBEx`
 ```elixir
 :ok = CouchDBEx.db_create("couchdb-ex-test")
 
-{:ok, doc} = CouchDBEx.document_insert_one("couchdb-ex-test", %{test_value: 1})
+{:ok, doc} = CouchDBEx.document_insert_one(%{test_value: 1}, "couchdb-ex-test")
 ```
 
 This library also includes subscribing to database changes with `CouchDBEx.changes_sub` and `_ubsub`,
