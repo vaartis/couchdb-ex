@@ -50,7 +50,7 @@ Then, you use functions from `CouchDBEx`
 {:ok, doc} = CouchDBEx.document_insert_one(%{test_value: 1}, "couchdb-ex-test")
 ```
 
-This library also includes subscribing to database changes with `CouchDBEx.changes_sub` and `_ubsub`,
+This library also includes subscribing to database changes with `CouchDBEx.changes_sub` and `_unsub`,
 see respective functions documentation for more
 
 ## Contribution
