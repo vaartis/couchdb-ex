@@ -266,8 +266,8 @@ defmodule CouchDBEx.Worker do
            if(Keyword.has_key?(opts, :content_type), do: [{"Content-Type", opts[:content_type]}], else: []),
            params: [rev: rev]
          ),
-         %{"ok" => true, "id" => id, "rev" => rev} <- resp.body |> Poison.decode!
-      do {:reply, {:ok, [id: id, rev: rev]}, state}
+         %{"ok" => true} = rp <- resp.body |> Poison.decode!
+      do {:reply, {:ok, rp}, state}
       else e -> {:reply, e, state}
     end
   end
