@@ -273,24 +273,8 @@ defmodule CouchDBEx.Worker do
   end
 
 
-  @doc """
-  ## Notes
-  If `index` is a list, it is considered a list of indexing fields, otherwise
-  it is used as a full index specification.
 
-  ## Options
-
-  * `ddoc` - name of the design document in which the index will be created.
-             By default, each index will be created in its own design document.
-             Indexes can be grouped into design documents for efficiency. However, a change to
-             one index in a design document will invalidate all other indexes in the
-             same document (similar to views)
-  * `name` - name of the index. If no name is provided, a name will be generated automatically
-  * `type` - can be "json" or "text". Defaults to json
-  * `partial_filter_selector` - a selector to apply to documents at indexing time, creating
-             a partial index
-
-  """
+  @impl true
   def handle_call(
     {:index_create, index, database, opts}, _from, state
   ) when is_map(index) or is_list(index) do
@@ -313,6 +297,7 @@ defmodule CouchDBEx.Worker do
     end
   end
 
+  @impl true
   def handle_call({:index_delete, database, ddoc, index_name}, _from, state) do
     with {:ok, resp} <- HTTPClient.delete(
            "#{state[:hostname]}:#{state[:port]}/#{database}/_index/#{ddoc}/json/#{index_name}"
@@ -323,6 +308,7 @@ defmodule CouchDBEx.Worker do
     end
   end
 
+  @impl true
   def handle_call({:index_list, database}, _from, state) do
     with {:ok, resp} <- HTTPClient.get("#{state[:hostname]}:#{state[:port]}/#{database}/_index"),
          %{"indexes" => indexes, "total_rows" => total} <- resp.body |> Poison.decode!
