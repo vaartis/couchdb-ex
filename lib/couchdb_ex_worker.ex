@@ -272,6 +272,20 @@ defmodule CouchDBEx.Worker do
     end
   end
 
+  @impl true
+  def handle_call({:attachment_get, database, docid, rev, name}, _from, state) do
+    with {:ok, resp} <- HTTPClient.get(
+           "#{state[:hostname]}:#{state[:port]}/#{database}/#{docid}/#{name}",
+           [],
+           params: [rev: rev]
+         ),
+         %HTTPoison.Response{status_code: 200} <- resp do
+      {_, content_type} = Enum.find(resp.headers, fn {h, _} -> h == "Content-Type" end)
+      {:reply, {:ok, resp.body,content_type}, state}
+    else
+      e -> {:reply, {:error, e}, state}
+    end
+  end
 
 
   @impl true

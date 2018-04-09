@@ -211,6 +211,20 @@ defmodule CouchDBEx do
     GenServer.call(CouchDBEx.Worker, {:attachment_upload, db, id, doc_rev, {name, bindata}, opts})
   end
 
+  @doc """
+  Get an attachment from a document.
+
+  This function will allso return the `Content-Type` of the attachment
+  if one is stored in the database (or `application/octet-stream` otherwise)
+  in the format `{:ok, data, content_type}`.
+  """
+  @spec attachment_get(
+    db :: String.t, id :: String.t, name :: String.t, rev :: String.t
+  ) :: {:ok, binary, String.t} | {:error, term}
+  def attachment_get(db, id, doc_rev, name) do
+    GenServer.call(CouchDBEx.Worker, {:attachment_get, db, id, doc_rev, name})
+  end
+
 
   ## Indexes
 
