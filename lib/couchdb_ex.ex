@@ -375,7 +375,7 @@ defmodule CouchDBEx do
                 trying to change it **WILL RAISE a RuntimeError**
   """
   def changes_sub(db, modname, watcher_name, opts \\ []) do
-    GenServer.call(CouchDBEx.Worker, {:changes_sub, db, modname, watcher_name, opts})
+    GenServer.cast(CouchDBEx.Worker, {:changes_sub, db, modname, watcher_name, opts})
   end
 
   @doc """
@@ -383,6 +383,6 @@ defmodule CouchDBEx do
 
   `modname` is the module's name as known to the supervisor, not the actual running module.
   """
-  def changes_unsub(modname), do: GenServer.call(CouchDBEx.Worker, {:changes_unsub, modname})
+  def changes_unsub(modname), do: GenServer.cast(CouchDBEx.Worker, {:changes_unsub, modname})
 
 end

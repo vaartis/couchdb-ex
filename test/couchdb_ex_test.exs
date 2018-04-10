@@ -154,4 +154,47 @@ defmodule CouchDBExTest do
     )
   end
 
+  test "subscribing works" do
+
+    defmodule ChangesTest do
+      use GenServer
+
+      def start_link(opts) do
+        GenServer.start_link(__MODULE__, nil, opts)
+      end
+
+      def init(_) do
+        {:ok, nil}
+      end
+
+      def handle_info({:couchdb_change, msg}, _) do
+        {:noreply, msg}
+      end
+
+      def handle_call(:get, _from, state) do
+        {:reply, state, state}
+      end
+
+    end
+
+    seed = Integer.to_string(ExUnit.configuration[:seed])
+
+    CouchDBEx.changes_sub("couchdb-ex-test", ChangesTest, ChangesTest)
+
+    CouchDBEx.document_insert_one(%{data: seed}, "couchdb-ex-test")
+
+    # Need to wait a little, it never spawns immidietly
+    Process.sleep(100)
+
+    assert Enum.count(Supervisor.which_children(CouchDBEx.Worker.ChangesCommunicator.Supervisor)) == 1
+
+    %{"doc" => %{"data" => ^seed}} = GenServer.call(ChangesTest, :get)
+
+    CouchDBEx.changes_unsub(ChangesTest)
+
+    # Just to be safe
+    Process.sleep(100)
+
+    assert Enum.count(Supervisor.which_children(CouchDBEx.Worker.ChangesCommunicator.Supervisor)) == 0
+  end
 end

@@ -48,9 +48,8 @@ defmodule CouchDBEx.Worker.ChangesCommunicator do
         selector: pre_final_opts[:selector]
       }
       |> Enum.filter(fn {_, v} -> not is_nil(v) end)
-      |> (fn m -> if(Enum.empty?(m), do: "", else: m) end).()
       |> Enum.into(%{})
-      |> Poison.encode!
+    maybe_body = if Enum.empty?(maybe_body), do: "", else: Poison.encode!(maybe_body)
 
     final_opts =
       pre_final_opts
