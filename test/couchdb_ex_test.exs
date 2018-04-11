@@ -154,7 +154,7 @@ defmodule CouchDBExTest do
     )
   end
 
-  test "subscribing works" do
+  test "subscribing and unsubscribing works" do
 
     defmodule ChangesTest do
       use GenServer
