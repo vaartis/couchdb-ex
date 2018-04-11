@@ -409,6 +409,27 @@ defmodule CouchDBEx.Worker do
     end
   end
 
+
+  def handle_call({:ddoc_insert, ddoc, name, database}, _from, state) do
+    with {:ok, resp} <- HTTPClient.put(
+           "#{state[:hostname]}:#{state[:port]}/#{database}/_design/#{name}",
+           Poison.encode!(ddoc)
+         ),
+         %{"ok" => true} = json_resp <- resp.body |> Poison.decode!
+      do {:reply, {:ok, json_resp}, state}
+      else e -> {:reply, transform_error(e), state}
+    end
+  end
+
+  def handle_call({:ddoc_get, name, database, opts}, from, state) do
+    handle_call({:document_get, "_design/#{name}", database, opts}, from, state)
+  end
+
+  def handle_call({:ddoc_delete, name, rev, database}, from, state) do
+    handle_call({:document_delete, {"_design/#{name}", rev}, database}, from, state)
+  end
+
+
   @impl true
   def handle_cast({:changes_sub, database, modname, watcher_name, opts}, state) do
     GenServer.cast(

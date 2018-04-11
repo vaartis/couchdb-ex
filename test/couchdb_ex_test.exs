@@ -197,4 +197,31 @@ defmodule CouchDBExTest do
 
     assert Enum.count(Supervisor.which_children(CouchDBEx.Worker.ChangesCommunicator.Supervisor)) == 0
   end
+
+  test "insert, get, delete a design document" do
+    map_func = "function (doc){emit(doc._id, doc);}"
+
+    {
+      :ok,
+      %{"id" => did, "rev" => drev}
+    } = CouchDBEx.ddoc_insert(%{map: map_func}, "test-view", "couchdb-ex-test")
+
+    assert match?(
+      {
+        :ok,
+        %{"_id" => ^did, "map" => ^map_func}
+      },
+      CouchDBEx.ddoc_get("test-view", "couchdb-ex-test")
+    )
+
+    {:ok, _} = CouchDBEx.ddoc_delete("test-view", drev, "couchdb-ex-test")
+
+    assert match?(
+      {
+        :error,
+        %CouchDBEx.Error{error: "not_found", reason: "deleted"}
+      },
+      CouchDBEx.ddoc_get("test-view", "couchdb-ex-test")
+    )
+  end
 end

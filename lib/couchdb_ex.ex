@@ -385,4 +385,35 @@ defmodule CouchDBEx do
   """
   def changes_unsub(modname), do: GenServer.cast(CouchDBEx.Worker, {:changes_unsub, modname})
 
+
+  ##  Design documents
+
+
+  @doc """
+  Insert or update a design document.
+
+  Read more about design documents' fields
+  [here](http://docs.couchdb.org/en/2.1.1/api/ddoc/common.html#db-design-design-doc)
+  """
+  @spec ddoc_insert(ddoc :: map, name :: String.t, db :: String.t) :: couchdb_res
+  def ddoc_insert(ddoc, name, db), do: GenServer.call(CouchDBEx.Worker, {:ddoc_insert, ddoc, name, db})
+
+  @doc """
+  Get a design document by name.
+
+  This function is an alias for `CouchDBEx.document_get/3` that
+  automatically adds `_design/` to the name.
+  """
+  @spec ddoc_get(name :: String.t, db :: String.t, opts :: keyword) :: couchdb_res
+  def ddoc_get(name, db, opts \\ []), do: GenServer.call(CouchDBEx.Worker, {:ddoc_get, name, db, opts})
+
+  @doc """
+  Delete a design document.
+
+  This function is an alias for `CouchDBEx.document_delete_one/3` that automatically
+  appends `_design/` to the name.
+  """
+  @spec ddoc_delete(name :: String.t, rev :: String.t, db :: String.t) :: couchdb_res
+  def ddoc_delete(name, rev, db), do: GenServer.call(CouchDBEx.Worker, {:ddoc_delete, name, rev, db})
+
 end
