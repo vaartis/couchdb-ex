@@ -416,4 +416,17 @@ defmodule CouchDBEx do
   @spec ddoc_delete(name :: String.t, rev :: String.t, db :: String.t) :: couchdb_res
   def ddoc_delete(name, rev, db), do: GenServer.call(CouchDBEx.Worker, {:ddoc_delete, name, rev, db})
 
+
+  ## Views
+
+  @doc """
+  Execute a view function from a design document.
+
+  Read more about options [here](http://docs.couchdb.org/en/2.1.1/api/ddoc/views.html#get--db-_design-ddoc-_view-view)
+  """
+  @spec view_exec(ddoc :: String.t, view :: String.t, db :: String.t, opts :: keyword) :: couchdb_res
+  def view_exec(ddoc, view, db, opts \\ []) do
+    GenServer.call(CouchDBEx.Worker, {:view_exec, ddoc, view, db, opts})
+  end
+
 end

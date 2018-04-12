@@ -348,6 +348,20 @@ defmodule CouchDBEx.Worker do
     end
   end
 
+  @impl true
+  def handle_call({:view_exec, ddoc, view, db, opts}, _from, state) do
+    with {:ok, resp} <- HTTPClient.post(
+           "#{state[:hostname]}:#{state[:port]}/#{db}/_design/#{ddoc}/_view/#{view}",
+           "",
+           [],
+           params: opts
+         ),
+    %{"total_rows" => _} = json_resp <- resp.body |> Poison.decode!
+      do {:reply, {:ok, json_resp}, state}
+      else e -> {:reply, transform_error(e), state}
+    end
+  end
+
 
   @doc """
   ## Options
