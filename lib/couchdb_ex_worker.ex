@@ -350,9 +350,8 @@ defmodule CouchDBEx.Worker do
 
   @impl true
   def handle_call({:view_exec, ddoc, view, db, opts}, _from, state) do
-    with {:ok, resp} <- HTTPClient.post(
+    with {:ok, resp} <- HTTPClient.get(
            "#{state[:hostname]}:#{state[:port]}/#{db}/_design/#{ddoc}/_view/#{view}",
-           "",
            [{"Content-Type", "application/json"}],
            params: opts
          ),
