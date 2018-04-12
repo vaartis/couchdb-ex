@@ -352,7 +352,7 @@ defmodule CouchDBEx.Worker do
   def handle_call({:view_exec, ddoc, view, db, opts}, _from, state) do
     with {:ok, resp} <- HTTPClient.get(
            "#{state[:hostname]}:#{state[:port]}/#{db}/_design/#{ddoc}/_view/#{view}",
-           [{"Content-Type", "application/json"}],
+           [{"Accept", "application/json"}],
            params: opts
          ),
     %{"total_rows" => _} = json_resp <- resp.body |> Poison.decode!
