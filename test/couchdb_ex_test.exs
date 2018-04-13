@@ -224,4 +224,38 @@ defmodule CouchDBExTest do
       CouchDBEx.ddoc_get("test-view", "couchdb-ex-test")
     )
   end
+
+  test "view execution works" do
+    CouchDBEx.ddoc_insert(
+      %{
+        views: %{
+          test_view: %{
+            map: """
+                function(doc) {
+                    if (doc.val && doc.val == 1) {
+                        emit(doc._id, doc.val);
+                    }
+                }
+            """
+          }
+        }
+      },
+      "test_view",
+      "couchdb-ex-test"
+    )
+
+    {:ok, [%{"id" => did}, _]} = CouchDBEx.document_insert_many([%{val: 1}, %{val: 2}], "couchdb-ex-test")
+
+    assert match?(
+      {:ok, %{"rows" => [%{"key" => ^did}]}},
+      CouchDBEx.view_exec("test_view", "test_view", "couchdb-ex-test")
+    )
+
+    assert match?(
+      {:ok, %{"rows" => [%{"key" => ^did}]}},
+      CouchDBEx.view_exec("test_view", "test_view", "couchdb-ex-test", key: Poison.encode!(did))
+    )
+
+  end
+
 end
