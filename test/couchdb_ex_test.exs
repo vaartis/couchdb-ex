@@ -184,7 +184,7 @@ defmodule CouchDBExTest do
     CouchDBEx.document_insert_one(%{data: seed}, "couchdb-ex-test")
 
     # Need to wait a little, it never spawns immidietly
-    Process.sleep(100)
+    Process.sleep(1000)
 
     assert Enum.count(Supervisor.which_children(CouchDBEx.Worker.ChangesCommunicator.Supervisor)) == 1
 
@@ -193,7 +193,7 @@ defmodule CouchDBExTest do
     CouchDBEx.changes_unsub(ChangesTest)
 
     # Just to be safe
-    Process.sleep(100)
+    Process.sleep(1000)
 
     assert Enum.count(Supervisor.which_children(CouchDBEx.Worker.ChangesCommunicator.Supervisor)) == 0
   end
