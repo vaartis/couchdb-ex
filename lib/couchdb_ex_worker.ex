@@ -353,7 +353,8 @@ defmodule CouchDBEx.Worker do
     with {:ok, resp} <- HTTPClient.get(
            "#{state[:hostname]}:#{state[:port]}/#{db}/_design/#{ddoc}/_view/#{view}",
            [],
-           params: opts
+           params: opts,
+           recv_timeout: :infinity # Views can take a long time
          ),
     %{"total_rows" => _} = json_resp <- resp.body |> Poison.decode!
       do {:reply, {:ok, json_resp}, state}
