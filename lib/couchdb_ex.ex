@@ -139,7 +139,9 @@ defmodule CouchDBEx do
   it suitable for mass updates too
   """
   @spec document_insert_many(docs :: [map], db :: String.t) :: {:ok, [map]} | {:error, term}
-  def document_insert_many(docs, db), do: GenServer.call(CouchDBEx.Worker, {:document_insert, docs, db})
+  def document_insert_many(docs, db) do
+    GenServer.call(CouchDBEx.Worker, {:document_insert, docs, db}, :infinity)
+  end
 
   @doc """
   Lists all (or filtered) documents in the database, along with their number
@@ -148,7 +150,7 @@ defmodule CouchDBEx do
   [`_all_docs`](http://docs.couchdb.org/en/2.1.1/api/database/bulk-api.html#get--db-_all_docs)
   """
   @spec document_list(db :: String.t, opts :: keyword) :: couchdb_res
-  def document_list(db, opts \\ []), do: GenServer.call(CouchDBEx.Worker, {:document_list, db, opts})
+  def document_list(db, opts \\ []), do: GenServer.call(CouchDBEx.Worker, {:document_list, db, opts}, :infinity)
 
   @doc """
   Get a document from the database.
@@ -171,7 +173,7 @@ defmodule CouchDBEx do
   """
   @spec document_find(selector :: map, db :: String.t, opts :: keyword) :: couchdb_res
   def document_find(selector, db, opts \\ []) do
-    GenServer.call(CouchDBEx.Worker, {:document_find, selector, db, opts})
+    GenServer.call(CouchDBEx.Worker, {:document_find, selector, db, opts}, :infinity)
   end
 
   @doc """
@@ -186,7 +188,9 @@ defmodule CouchDBEx do
   Internally, this function asks `_bulk_docs` to set `_deleted` for those documents
   """
   @spec document_delete_many(id_rev :: [{String.t, String.t}], db :: String.t) :: couchdb_res
-  def document_delete_many(id_rev, db), do: GenServer.call(CouchDBEx.Worker, {:document_delete, id_rev, db})
+  def document_delete_many(id_rev, db) do
+    GenServer.call(CouchDBEx.Worker, {:document_delete, id_rev, db}, :infinity)
+  end
 
 
   ## Attachments
@@ -210,7 +214,7 @@ defmodule CouchDBEx do
     db :: String.t, id :: String.t, doc_rev :: String.t, name :: String.t, bindata :: binary, opts :: keyword
   ) :: {:ok, [id: String.t, rev: String.t]} | {:error, term}
   def attachment_upload(db, id, doc_rev, name, bindata, opts \\ []) do
-    GenServer.call(CouchDBEx.Worker, {:attachment_upload, db, id, doc_rev, {name, bindata}, opts})
+    GenServer.call(CouchDBEx.Worker, {:attachment_upload, db, id, doc_rev, {name, bindata}, opts}, :infinity)
   end
 
   @doc """
@@ -224,7 +228,7 @@ defmodule CouchDBEx do
     db :: String.t, id :: String.t, name :: String.t, rev :: String.t
   ) :: {:ok, binary, String.t} | {:error, term}
   def attachment_get(db, id, doc_rev, name) do
-    GenServer.call(CouchDBEx.Worker, {:attachment_get, db, id, doc_rev, name})
+    GenServer.call(CouchDBEx.Worker, {:attachment_get, db, id, doc_rev, name}, :infinity)
   end
 
   @doc """
@@ -236,7 +240,7 @@ defmodule CouchDBEx do
     db :: String.t, id :: String.t, name :: String.t, rev :: String.t
   ) :: couchdb_res
   def attachment_delete(db, id, doc_rev, name) do
-    GenServer.call(CouchDBEx.Worker, {:attachment_delete, db, id, doc_rev, name})
+    GenServer.call(CouchDBEx.Worker, {:attachment_delete, db, id, doc_rev, name}, :infinity)
   end
 
 

@@ -1,6 +1,8 @@
 defmodule CouchDBEx.Worker.ChangesCommunicator do
   use GenServer
 
+  alias CouchDBEx.HTTPClient
+
   require Logger
 
   @moduledoc false
@@ -56,13 +58,12 @@ defmodule CouchDBEx.Worker.ChangesCommunicator do
       |> Map.delete(:doc_ids)
       |> Map.delete(:selector)
 
-    {:ok, %HTTPoison.AsyncResponse{id: resp_id}} = HTTPoison.post(
+    {:ok, %HTTPoison.AsyncResponse{id: resp_id}} = HTTPClient.post(
       "#{state[:hostname]}:#{state[:port]}/#{database}/_changes",
       maybe_body,
       [{"Content-Type", "application/json"}],
       stream_to: self(),
-      params: final_opts,
-      recv_timeout: :infinity
+      params: final_opts
     )
 
     state = put_in(state[:watchers][resp_id], watcher_name)

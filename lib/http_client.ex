@@ -8,6 +8,9 @@ defmodule CouchDBEx.HTTPClient do
   def process_request_options(options) do
     # Cookies are handles by hackney
 
+    # Disable request timeout
+    options = Keyword.put(options, :recv_timeout, :infinity)
+
     if AuthServer.auth_method == :cookie do
       # Update the hackney options if there are any
       if Keyword.has_key?(options, :hackney) do
