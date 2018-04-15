@@ -426,7 +426,7 @@ defmodule CouchDBEx do
   """
   @spec view_exec(ddoc :: String.t, view :: String.t, db :: String.t, opts :: keyword) :: couchdb_res
   def view_exec(ddoc, view, db, opts \\ []) do
-    GenServer.call(CouchDBEx.Worker, {:view_exec, ddoc, view, db, opts})
+    GenServer.call(CouchDBEx.Worker, {:view_exec, ddoc, view, db, opts}, :infinity)
   end
 
 end
