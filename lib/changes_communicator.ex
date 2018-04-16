@@ -27,11 +27,16 @@ defmodule CouchDBEx.Worker.ChangesCommunicator do
       raise "Changing :feed or :heartbeet parameters is not supported"
     end
 
+    pass_args = opts[:pass_args]
+    opts = Keyword.delete(opts, :pass_args)
+    default_watcher_args = [name: watcher_name]
+    watcher_args = if is_nil(pass_args), do: default_watcher_args, else: Keyword.merge(default_watcher_args, pass_args)
+
     {:ok, _} = Supervisor.start_child(
       CouchDBEx.Worker.ChangesCommunicator.Supervisor,
       %{
         id: watcher_name,
-        start: {module_name, :start_link, [[name: watcher_name]]}
+        start: {module_name, :start_link, [watcher_args]}
       }
     )
 

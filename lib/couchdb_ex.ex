@@ -377,6 +377,9 @@ defmodule CouchDBEx do
   * `since` is `now`
   * `heartbeat` is `25`, this is needed to keep the connection alive,
                 trying to change it **WILL RAISE a RuntimeError**
+
+  One can also pass arguments to the watcher by using `:pass_args` option.
+  Do note that your arguments will override the default (e.h. `:name`)
   """
   def changes_sub(db, modname, watcher_name, opts \\ []) do
     GenServer.cast(CouchDBEx.Worker, {:changes_sub, db, modname, watcher_name, opts})
