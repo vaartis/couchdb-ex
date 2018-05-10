@@ -26,6 +26,19 @@ Documentation can be found [here](https://hexdocs.pm/couchdb_ex)
 
 ## Usage example
 
+### 1. Add the dependency in your application's `mix.exs`
+```elixir
+defp deps do
+    [
+        # ...
+        {:couchdb_ex, "~> 0.2.1"},
+    ]
+end
+```
+
+### 2. Use it in your application
+
+#### 2.1. Elixir application
 First, add the couchdb worker to your supervisor
 
 ```elixir
@@ -42,7 +55,31 @@ First, add the couchdb worker to your supervisor
     Supervisor.start_link(children, opts)
 ```
 
-Then, you use functions from `CouchDBEx`
+#### 2.2. Phoenix framework application
+Find the `application.ex` which is usually present in `hello/lib/hello/` where `hello` is your project name. Phoenix uses soft-deprecated `Supervisor.Spec` thus the minor difference in usage.
+
+Then add the couchdb worker to your application module
+
+```elixir
+def start(_type, _args) do
+    import Supervisor.Spec
+
+    children = [
+        supervisor(HelloWeb.Endpoint, []),
+        worker(CouchDBEx.Worker, [[
+            hostname: "http://localhost",
+            username: "couchdb",
+            password: "couchdb",
+            auth_method: :cookie # or :basic, if you feel like it
+        ]])
+    ]
+    opts = [strategy: :one_for_one, name: Hello.Supervisor]
+    Supervisor.start_link(children, opts)
+end
+```
+### 3. You are all set to make DB operations
+
+Now, you can use functions from `CouchDBEx`
 
 ```elixir
 :ok = CouchDBEx.db_create("couchdb-ex-test")
